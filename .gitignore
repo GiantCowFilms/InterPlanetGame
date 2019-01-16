@@ -1,0 +1,10 @@
+dist
+node_modules
+crate/bin
+crate/pkg
+crate/target
+crate/wasm-pack.log
+crate/Cargo.lock
+# target should technically be inside crate. Not sure what the issue is.
+/target
+**/*.rs.bk
