@@ -39,7 +39,7 @@ pub struct Game {
 }
 
 impl Game {
-    fn from_map() {
-
+    fn from_map(map: map::Map) {
+        
     }
 }

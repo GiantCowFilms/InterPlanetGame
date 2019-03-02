@@ -5,7 +5,7 @@ authors = ["GiantCowFilms <git@giantcowfilms.com>"]
 edition = "2018"
 
 [dependencies]
-tokio = "0.1.14"
+tokio = { version = "0.1.14", features = ["async-await-preview"]}
 ws = "0.7.9"
 serde_json = "1.0.36"
 serde = "1.0.85"

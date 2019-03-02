@@ -14,7 +14,7 @@ pub struct Planet {
 }
 
 #[derive(Deserialize)]
-struct MapSize {
+pub struct MapSize {
     x: u32,
     y: u32
 }
@@ -22,16 +22,15 @@ struct MapSize {
 /// Represents the Inter Planet Game map format (v0.4)
 #[derive(Deserialize)]
 pub struct Map {
-    size: MapSize,
-    name: String,
-    planets: Vec<Planet>
+    pub size: MapSize,
+    pub name: String,
+    pub planets: Vec<Planet>
 }
 
 
 impl Map {
-    pub fn from_string (data: &str) -> serde_json::Result<()> {
-        serde_json::from_str(data)?;
-        Ok(())
+    pub fn from_string (data: &str) -> std::result::Result<Map,serde_json::Error> {
+        serde_json::from_str(data)
     }
 
     /// Generates a galaxy (intial game state snapshot) from map
