@@ -6,7 +6,8 @@ edition = "2018"
 
 [dependencies]
 tokio = { version = "0.1.14", features = ["async-await-preview"]}
-ws = "0.7.9"
+tokio-tungstenite = "*"
 serde_json = "1.0.36"
-serde = "1.0.85"
+serde = { version = "1.0.85", features = ["rc"]}
 serde_derive = "1.0.85"
+futures = "0.1.25"

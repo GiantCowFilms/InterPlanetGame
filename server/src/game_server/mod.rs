@@ -1,58 +1,80 @@
-use ws::{listen, Handler, Sender, Handshake, Result, Message};
-use crate::game::{ Game };
+use crate::game::Game;
+use futures::sink::Sink;
+use futures::stream::Stream;
+use futures::sync::mpsc;
 use std::collections::HashMap;
-use tokio;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::prelude::*;
+use tokio_tungstenite::accept_async;
+use tokio_tungstenite::tungstenite::{Error, Message};
+use tokio_tungstenite::WebSocketStream;
 pub mod map_manager;
-
-pub struct Server {
-    out: Sender,
-}
-
-impl Handler for Server {
-    fn on_open (&mut self, _:Handshake) -> Result <()> {
-        Ok(())
-    }
-
-    fn on_message (&mut self, msg: Message) -> Result<()> {
-        println!("Recivied Message: {}", msg.as_text().unwrap());
-        tokio::run_async(async move {
-            
-        });
-        // TODO match messsage type
-        // Planned types
-        // Set Name
-        // Enter Game
-
-        // Game Move
-        // Exit Game
-        Ok(())
-    }
-}
+pub mod message_handler;
+pub mod messages;
 
 pub struct GameServer {
-    games: HashMap<String,Game>,
-    map_manager: Box<map_manager::MapManager>
+    port: u16,
+    games: HashMap<String, Game>,
+    map_manager: Box<map_manager::MapManager>,
 }
 
 impl GameServer {
-    /// Initializes a game server
-    /// 
+    /// Starts a game server
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// let port: u16 = 1234;
     /// // Websocket now can be reached from localhost:1234
-    /// GameServer::new(port);
-    /// 
-    pub fn new (port: u16) -> GameServer {
+    /// GameServer::start(port);
+    ///
+    pub fn start(port: u16) -> GameServer {
         let instance = GameServer {
+            port: port,
             games: HashMap::new(),
-            map_manager: Box::new(map_manager::FileSystemMapManager::new(String::from("./maps")))
+            map_manager: Box::new(map_manager::FileSystemMapManager::new(String::from(
+                "./maps",
+            ))),
         };
 
-        listen(format!("127.0.0.1:{}", port), |out| {
-            Server { out: out }
-        }).unwrap();
+        let listener = TcpListener::bind(&SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            port,
+        ))
+        .unwrap();
+        tokio::run_async(
+            async {
+                let mut incoming = listener.incoming();
+
+                while let Some(stream) = await!(incoming.next()) {
+                    let stream = stream.unwrap();
+                    let ws_stream = await!(accept_async(stream));
+                    await!(instance.handle_stream(ws_stream.unwrap()));
+                }
+            },
+        );
         instance
+    }
+
+    async fn handle_stream(&mut self, ws_stream: WebSocketStream<TcpStream>) {
+        let (mut sink, mut stream) = ws_stream.split();
+        let thread = tokio::spawn_async(
+            async move {
+                let _ = sink.start_send(Message::from("Hello World!"));
+                while let Some(message) = await!(stream.next()) {
+                    let message = message.unwrap();
+                    await!(self.handle_message(&message, &mut sink));
+                    if let Ok(text) = message.into_text() {
+                        sink.start_send(Message::from(format!(
+                            "You sent a message containing {}.",
+                            text
+                        )))
+                        .unwrap();
+                    };
+                }
+            },
+        );
+        thread
     }
 }

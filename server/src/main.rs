@@ -1,9 +1,11 @@
 #![feature(await_macro, async_await, futures_api)]
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate tokio;
 
-mod game_server;
 mod game;
+mod game_server;
 use self::game_server::GameServer;
 
 fn main() {
@@ -13,5 +15,5 @@ fn main() {
 
 /// Starts up the game server
 fn bootstrap_game_servers() {
-    GameServer::new(1234);
+    GameServer::start(1234);
 }

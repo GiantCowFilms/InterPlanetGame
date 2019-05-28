@@ -1,34 +1,45 @@
-use crate::game::Galaxy
+use crate::game::Galaxy;
 use serde::{Deserialize, Serialize};
 
-enum MessageType {
-    #[derive(Deserialize, Seralize)]
-    SetName {
-        name: String,
-    },
-    #[derive(Deserialize, Seralize)]
-    EnterGame {
-        game_id: String
-    },
-    #[derive(Deserialize, Seralize)]
-    GameState {
-        galaxy: Galaxy
-    },
-    #[derive(Deserialize, Seralize)]
-    GameMove {
-        to: u16
-        from: u16
-    },
-    TimedGameMove {
-        time: u64,
-        game_move: MessageType::GameMove
-    },
-    #[derive(Deserialize, Seralize)]
-    ExitGame {
+#[derive(Deserialize, Serialize)]
+pub struct SetName {
+    name: String
+}
 
-    }
-    #[derive(Deserialize, Seralize)]
-    CreateGame {
-        map_id: string
-    }
+#[derive(Deserialize, Serialize)]
+pub struct EnterGame {
+    game_id: String,
+}
+
+#[derive(Deserialize,Serialize)]
+pub struct GameState {
+    galaxy: Galaxy
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct GameMove {
+    to: u16,
+    from: u16
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct TimedGameMove {
+    time: u64,
+    game_move: GameMove
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct CreateGame {
+    map_id: String
+}
+
+#[derive(Deserialize, Serialize)]
+pub enum MessageType {
+    SetName(SetName),
+    EnterGame(EnterGame),
+    GameState(GameState),
+    GameMove(GameMove),
+    TimedGameMove(TimedGameMove),
+    ExitGame,
+    CreateGame(CreateGame)
 }
