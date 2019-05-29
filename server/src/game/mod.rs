@@ -1,5 +1,5 @@
 pub mod map;
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Serialize, Deserialize)]
 pub struct Player {
@@ -21,7 +21,7 @@ pub struct Planet {
     radius: u32,
     multiplier: f64,
     value: u32,
-    possession: Option<Rc<Player>>,
+    possession: Option<Arc<Player>>,
 }
 
 #[derive(Serialize, Deserialize)]

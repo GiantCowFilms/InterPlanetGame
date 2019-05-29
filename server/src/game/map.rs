@@ -1,6 +1,6 @@
 use crate::game;
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Deserialize, Serialize)]
 pub struct Planet {
@@ -43,7 +43,7 @@ impl Map {
     /// }]));
     /// ```
 
-    pub fn to_galaxy(&self, players: Vec<Rc<game::Player>>) -> Result<game::Galaxy, String> {
+    pub fn to_galaxy(&self, players: Vec<Arc<game::Player>>) -> Result<game::Galaxy, String> {
         if players.len() < 2 {
             return Err(String::from(
                 "Invalid map configuration. At least two players are required to create a galaxy.",
@@ -65,7 +65,7 @@ impl Map {
                 y: planet.y,
                 multiplier: planet.multiplier,
                 value: planet.start_value,
-                possession: Some(Rc::clone(possesion?))
+                possession: Some(Arc::clone(possesion?))
             })
         }).collect();
 

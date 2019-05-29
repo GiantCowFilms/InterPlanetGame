@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::game::Game;
 use futures::sink::Sink;
 use futures::stream::Stream;
@@ -9,6 +10,7 @@ use tokio::prelude::*;
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::{Error, Message};
 use tokio_tungstenite::WebSocketStream;
+use std::sync::Mutex;
 pub mod map_manager;
 pub mod message_handler;
 pub mod messages;
@@ -16,7 +18,7 @@ pub mod messages;
 pub struct GameServer {
     port: u16,
     games: HashMap<String, Game>,
-    map_manager: Box<map_manager::MapManager>,
+    map_manager: Mutex<Box<map_manager::MapManager + Send>>,
 }
 
 impl GameServer {
@@ -30,12 +32,12 @@ impl GameServer {
     /// GameServer::start(port);
     ///
     pub fn start(port: u16) -> GameServer {
-        let instance = GameServer {
+        let mut instance = GameServer {
             port: port,
             games: HashMap::new(),
-            map_manager: Box::new(map_manager::FileSystemMapManager::new(String::from(
+            map_manager: Mutex::new(Box::new(map_manager::FileSystemMapManager::new(String::from(
                 "./maps",
-            ))),
+            )))),
         };
 
         let listener = TcpListener::bind(&SocketAddr::new(
@@ -60,7 +62,7 @@ impl GameServer {
     async fn handle_stream(&mut self, ws_stream: WebSocketStream<TcpStream>) {
         let (mut sink, mut stream) = ws_stream.split();
         let thread = tokio::spawn_async(
-            async move {
+            async move || {
                 let _ = sink.start_send(Message::from("Hello World!"));
                 while let Some(message) = await!(stream.next()) {
                     let message = message.unwrap();
@@ -72,7 +74,7 @@ impl GameServer {
                         )))
                         .unwrap();
                     };
-                }
+                };
             },
         );
         thread
