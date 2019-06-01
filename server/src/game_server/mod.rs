@@ -59,10 +59,10 @@ impl GameServer {
         instance
     }
 
-    async fn handle_stream(&mut self, ws_stream: WebSocketStream<TcpStream>) {
+    async fn handle_stream<'a>(&mut self, ws_stream: WebSocketStream<TcpStream>) {
         let (mut sink, mut stream) = ws_stream.split();
         let thread = tokio::spawn_async(
-            async move || {
+            async move {
                 let _ = sink.start_send(Message::from("Hello World!"));
                 while let Some(message) = await!(stream.next()) {
                     let message = message.unwrap();

@@ -5,7 +5,7 @@ authors = ["GiantCowFilms <git@giantcowfilms.com>"]
 edition = "2018"
 
 [dependencies]
-tokio = { version = "0.1.14", features = ["async-await-preview"]}
+tokio = { version = "=0.1.14", features = ["async-await-preview"]}
 tokio-tungstenite = "*"
 serde_json = "1.0.36"
 serde = { version = "1.0.85", features = ["rc"]}
