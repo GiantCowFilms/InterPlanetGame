@@ -4,6 +4,6 @@ import Root from './Root';
 
 ReactDOM.render(<Root />, document.getElementById('root'));
 
-import { run } from 'inter-planet-game';
+import { run } from "inter-planet-game";
 
 run();

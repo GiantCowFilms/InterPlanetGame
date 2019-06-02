@@ -12,11 +12,3 @@ serde = { version = "1.0.85", features = ["rc"]}
 serde_derive = "1.0.85"
 futures = "0.1.25"
 rand = { git = "https://github.com/rust-random/rand" }
-
-# [[bin]]
-# name = "serverbin"
-# path = "src/main.rs"
-
-# [lib]
-# name = "serverlib"
-# path = "src/lib.rs"

@@ -6,6 +6,8 @@ extern crate tokio;
 
 mod game;
 mod game_server;
+
+use self::game_server::map_manager;
 use self::game_server::GameServer;
 
 fn main() {
@@ -15,5 +17,10 @@ fn main() {
 
 /// Starts up the game server
 fn bootstrap_game_servers() {
-    GameServer::start(1234);
+    GameServer::start(
+        1234,
+        map_manager::FileSystemMapManager::new(
+            "Q:\\Projects\\Development\\2019\\inter-planet-game\\maps".to_string(),
+        ),
+    );
 }

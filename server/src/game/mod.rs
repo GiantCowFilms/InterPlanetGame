@@ -40,12 +40,16 @@ pub struct Galaxy {
 #[derive(Serialize, Deserialize)]
 pub struct Game {
     map: map::Map,
-    state: Galaxy,
-    players: Vec<Player>
+    state: Option<Galaxy>,
+    players: Vec<Arc<Player>>
 }
 
 impl Game {
-    fn from_map(map: map::Map) {
-        
+    pub fn from_map(map: map::Map) -> Game {
+        Game {
+            map: map,
+            players: Vec::new(),
+            state: None
+        }
     }
 }

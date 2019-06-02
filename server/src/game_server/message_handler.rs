@@ -1,9 +1,12 @@
-use crate::game_server::messages::MessageType;
+use crate::game_server::messages::{ MessageType, GameMetadata};
 use crate::GameServer;
+use crate::game::Game;
+use crate::game_server::GameList;
+use std::sync::Arc;
 use futures::sink::Sink;
 use futures::sync::mpsc::SendError;
-use std::future::Future;
 use tokio_tungstenite::tungstenite::{Error, Message};
+use std::future::Future;
 
 pub trait Captures<'a> {}
 
@@ -11,7 +14,7 @@ impl<'a, T> Captures<'a> for T {}
 
 impl GameServer {
     pub fn handle_message<'a: 'c, 'b: 'c, 'c>(
-        &mut self,
+        instance: Arc<GameServer>,
         message: &'a Message,
         sink: &'b mut ((Sink<SinkItem = Message, SinkError = Error>) + Send),
     ) -> impl Future<Output = ()> + Captures<'a> + Captures<'b> + 'c {
@@ -19,23 +22,57 @@ impl GameServer {
             let result = if let Ok(message_body) = message.to_text() {
                 if let Ok(message_data) = serde_json::from_str::<MessageType>(message_body) {
                     match message_data {
-                        MessageType::CreateGame(game_settings) => Ok(()),
+                        MessageType::CreateGame(game_settings) => {
+                            match (*instance).map_manager.lock() {
+                                Ok(maps) => { 
+                                    if let Some(map) = maps.map_by_id(&game_settings.map_id) {
+                                        let game = Game::from_map((*map).clone());
+                                        match (*instance).games.write() {
+                                            Ok(mut games) => {
+                                                let game_id = games.add_game(game);
+                                                let seralized = serde_json::to_string(&MessageType::NewGame(GameMetadata {
+                                                    game_id: game_id
+                                                }));
+                                                let _ = sink.start_send(Message::from(seralized.unwrap()));
+                                                Ok(())
+                                            }
+                                            _=> Err("Game state corrupted by poisned mutex.".to_string())
+                                        }
+                                    } else {
+                                        Err(format!("Map with id \"{}\" not found.", game_settings.map_id))
+                                    }
+                                }
+                                Err(_poisoned) => Err("The game state is corrupted by a poisned mutex. Please report this bug.".to_string())
+                            }
+                        },
                         MessageType::ExitGame => {
                             let _ = sink.start_send(Message::from("ExitGame"));
                             Ok(())
+                        },
+                        MessageType::EnterGame(game_metadata) => {
+                            match instance.games.read() {
+                                Ok(games) => {
+                                    games.get(&game_metadata.game_id);
+                                    Ok(())
+                                },
+                                _ => Err("RwLock poisoned, game state corrupted".to_string())
+                            }
+                            //Send game state
                         }
-                        _ => Err("The provided message type was not found."),
+                        _ => Err("The provided message type was not found.".to_string()),
                     }
                 } else {
-                    Err("Could not parse the provided message.")
+                    Err("Could not parse the provided message.".to_string())
                 }
             } else {
-                Err("The recieved message could not be parsed as a string.")
+                Err("The recieved message could not be parsed as a string.".to_string())
             };
             match result {
                 Ok(_) => (),
                 Err(e) => {
-                    let _ = sink.start_send(Message::from(e));
+                    let _ = sink.start_send(Message::from(
+                        serde_json::to_string(&MessageType::Error(e)).unwrap()
+                    ));
                 }
             };
         }

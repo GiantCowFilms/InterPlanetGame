@@ -2,7 +2,7 @@ use crate::game;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Planet {
     x: u32,
     y: u32,
@@ -12,14 +12,14 @@ pub struct Planet {
     multiplier: f64,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct MapSize {
     x: u32,
     y: u32,
 }
 
 /// Represents the Inter Planet Game map format (v0.4)
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Map {
     pub size: MapSize,
     pub name: String,

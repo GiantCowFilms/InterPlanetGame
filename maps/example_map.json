@@ -1,0 +1,107 @@
+{
+    "size": {
+        "x": 1000,
+        "y": 1000
+    },
+    "name": "Example Map",
+    "planets": [
+        {
+            "x": 800,
+            "y": 500,
+            "start_value": 20,
+            "radius": 75,
+            "possession": [
+                2,
+                3,
+                4,
+                4,
+                4
+            ],
+            "multiplier": 1
+        },
+        {
+            "y": 760,
+            "x": 650,
+            "start_value": 20,
+            "radius": 75,
+            "possession": [
+                1,
+                3,
+                3,
+                3,
+                3
+            ],
+            "multiplier": 1
+        },
+        {
+            "y": 760,
+            "x": 350,
+            "start_value": 20,
+            "radius": 75,
+            "possession": [
+                1,
+                1,
+                0,
+                5,
+                5
+            ],
+            "multiplier": 1
+        },
+        {
+            "y": 240,
+            "x": 650,
+            "start_value": 20,
+            "radius": 75,
+            "possession": [
+                2,
+                2,
+                0,
+                0,
+                6
+            ],
+            "multiplier": 1
+        },
+        {
+            "y": 240,
+            "x": 350,
+            "start_value": 20,
+            "radius": 75,
+            "possession": [
+                2,
+                2,
+                2,
+                2,
+                2
+            ],
+            "multiplier": 1
+        },
+        {
+            "y": 500,
+            "x": 200,
+            "start_value": 20,
+            "radius": 75,
+            "possession": [
+                1,
+                1,
+                1,
+                1,
+                1
+            ],
+            "multiplier": 1
+        },
+        {
+            "y": 500,
+            "x": 500,
+            "start_value": 50,
+            "radius": 100,
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "multiplier": 2
+        }
+    ]
+}

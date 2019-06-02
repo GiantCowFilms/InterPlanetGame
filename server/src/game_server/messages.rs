@@ -8,7 +8,7 @@ pub struct SetName {
 
 #[derive(Deserialize, Serialize)]
 pub struct EnterGame {
-    game_id: String,
+    pub game_id: String,
 }
 
 #[derive(Deserialize,Serialize)]
@@ -30,7 +30,17 @@ pub struct TimedGameMove {
 
 #[derive(Deserialize, Serialize)]
 pub struct CreateGame {
-    map_id: String
+    pub map_id: String
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct GameMetadata {
+    pub game_id: String
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct GameList {
+    pub games: Vec<GameMetadata>
 }
 
 #[derive(Deserialize, Serialize)]
@@ -41,5 +51,8 @@ pub enum MessageType {
     GameMove(GameMove),
     TimedGameMove(TimedGameMove),
     ExitGame,
-    CreateGame(CreateGame)
+    NewGame(GameMetadata),
+    GameList(GameList),
+    CreateGame(CreateGame),
+    Error(String)
 }
