@@ -27,6 +27,13 @@ pub struct Map {
 }
 
 impl Map {
+
+    /// Parses a map from a json string
+    ///
+    /// #Example
+    /// ```
+    /// let mut map = Map::from_string("[valid map]");
+    /// ```
     pub fn from_string(data: &str) -> std::result::Result<Map, serde_json::Error> {
         serde_json::from_str(data)
     }

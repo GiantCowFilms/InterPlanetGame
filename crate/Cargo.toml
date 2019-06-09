@@ -14,12 +14,11 @@ crate-type = ["cdylib"]
 
 [dependencies]
 cfg-if = "0.1.5"
-wasm-bindgen = "0.2.42"
-server = { path = "../server" }
+ipg_core = { path = "../core" }
 serde_json = "1.0.36"
-# Only add if needed
-# serde = { version = "1.0.85", features = ["rc"]}
-# serde_derive = "1.0.85"
+serde = { version = "1.0.85", features = ["rc"]}
+serde_derive = "^1.0.85"
+js-sys = "*"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -32,6 +31,10 @@ console_error_panic_hook = { version = "0.1.5", optional = true }
 # allocator, however.
 wee_alloc = { version = "0.4.2", optional = true }
 
+[dependencies.wasm-bindgen]
+version = "^0.2.42"
+features = ["serde-serialize"]
+
 [dependencies.web-sys]
 version = "0.3"
 features = [
@@ -40,6 +43,7 @@ features = [
   "HtmlElement",
   "Node",
   "Window",
+  "console"
 ]
 
 [features]

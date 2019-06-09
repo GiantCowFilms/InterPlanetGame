@@ -1,5 +1,7 @@
+// Checking error location
 #[macro_use]
 extern crate cfg_if;
+extern crate serde_derive;
 
 extern crate wasm_bindgen;
 extern crate web_sys;
@@ -27,13 +29,19 @@ cfg_if! {
     }
 }
 
-//mod game_client;
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
+
+mod game_client;
 
 // Called by our JS entry point to run the example.
 #[wasm_bindgen]
-pub fn run() -> Result<(), JsValue> {
+pub fn make() -> game_client::GameClient {
     set_panic_hook();
 
-    Ok(())
+    game_client::GameClient::new()
 }
 

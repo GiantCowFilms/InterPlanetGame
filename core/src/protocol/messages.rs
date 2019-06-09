@@ -33,7 +33,7 @@ pub struct CreateGame {
     pub map_id: String
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct GameMetadata {
     pub game_id: String
 }

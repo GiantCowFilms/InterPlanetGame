@@ -1,6 +1,6 @@
-use crate::game_server::messages::{ MessageType, GameMetadata};
+use ipg_core::protocol::messages::{ MessageType, GameMetadata};
 use crate::GameServer;
-use crate::game::Game;
+use ipg_core::game::Game;
 use crate::game_server::GameList;
 use std::sync::Arc;
 use futures::sink::Sink;
@@ -31,18 +31,18 @@ impl GameServer {
                                             Ok(mut games) => {
                                                 let game_id = games.add_game(game);
                                                 let seralized = serde_json::to_string(&MessageType::NewGame(GameMetadata {
-                                                    game_id: game_id
+                                                    game_id
                                                 }));
                                                 let _ = sink.start_send(Message::from(seralized.unwrap()));
                                                 Ok(())
                                             }
-                                            _=> Err("Game state corrupted by poisned mutex.".to_string())
+                                            _=> Err("Game state corrupted by poisoned mutex. Please report this bug.".to_string())
                                         }
                                     } else {
                                         Err(format!("Map with id \"{}\" not found.", game_settings.map_id))
                                     }
                                 }
-                                Err(_poisoned) => Err("The game state is corrupted by a poisned mutex. Please report this bug.".to_string())
+                                Err(_poisoned) => Err("The game state is corrupted by a poisoned mutex. Please report this bug.".to_string())
                             }
                         },
                         MessageType::ExitGame => {
@@ -50,12 +50,11 @@ impl GameServer {
                             Ok(())
                         },
                         MessageType::EnterGame(game_metadata) => {
-                            match instance.games.read() {
-                                Ok(games) => {
-                                    games.get(&game_metadata.game_id);
-                                    Ok(())
-                                },
-                                _ => Err("RwLock poisoned, game state corrupted".to_string())
+                            if let Ok(games) = instance.games.read() {
+                                games.get(&game_metadata.game_id);
+                                Ok(())
+                            } else {
+                                Err("RwLock poisoned, game state corrupted".to_string())
                             }
                             //Send game state
                         }

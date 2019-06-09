@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useContext, useState } from 'react';
 import GameWindow from './components/GameWindow';
 import GameList from './components/GameList';
+import { mode, ModeContext } from './state/mode';
 type game_state = {
 
 }
@@ -15,10 +16,23 @@ type state = {
 }
 
 function Root() {
+    let [mode,setMode] = useState<mode>({
+        type: "browse"
+    });
     return <>
         <div>Inter-Planet Game</div>
-        <GameWindow />
-        <GameList />
+        <ModeContext.Provider value={{
+            mode,
+            setMode
+        }} >
+            {
+                mode.type === "browse" ?
+                    <GameList />
+                : mode.type === "game" ?
+                    <GameWindow game={mode.game} /> :
+                undefined
+            }
+        </ModeContext.Provider>
     </>;
 }
 
