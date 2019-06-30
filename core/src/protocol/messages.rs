@@ -1,14 +1,15 @@
 use crate::game::Galaxy;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
-pub struct SetName {
-    name: String
+cfg_if! {
+    if #[cfg(target_arch = "wasm32")] {
+        use wasm_bindgen::prelude::*;
+    }
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct EnterGame {
-    pub game_id: String,
+pub struct SetName {
+    name: String
 }
 
 #[derive(Deserialize,Serialize)]
@@ -33,7 +34,8 @@ pub struct CreateGame {
     pub map_id: String
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+//#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[derive(Deserialize, Serialize)]
 pub struct GameMetadata {
     pub game_id: String
 }
@@ -44,11 +46,23 @@ pub struct GameList {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct GamePlayers {
+    pub game_id: String,
+    pub players: Vec<PlayerMetadata>
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct PlayerMetadata {
+    name: String
+}
+
+#[derive(Deserialize, Serialize)]
 pub enum MessageType {
     SetName(SetName),
-    EnterGame(EnterGame),
+    EnterGame(GameMetadata),
     GameState(GameState),
     GameMove(GameMove),
+    GamePlayers(GamePlayers),
     TimedGameMove(TimedGameMove),
     ExitGame,
     NewGame(GameMetadata),

@@ -22,6 +22,7 @@ impl GameClient {
             // on_game_list: Vec::new()
         }
     }
+
     pub fn handle_message(&mut self, msg_body: String) -> Option<String> {
         log!("{}",msg_body.as_str());
         let message = serde_json::from_str::<MessageType>(msg_body.as_str()).unwrap();
@@ -43,9 +44,12 @@ impl GameClient {
     pub fn game_list(&self) -> JsValue {
         JsValue::from_serde(&self.game_list).unwrap()
     }
+    // pub fn game_list(&self) -> Box<[GameMetadata]> {
+    //     self.game_list.clone().into_boxed_slice()
+    // }
 
     pub fn create_game(&self) {
-        
+
     }
 
     // /// Calls a callback when the game_list changes.

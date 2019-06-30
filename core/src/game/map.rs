@@ -82,4 +82,8 @@ impl Map {
             planets: planets?,
         })
     }
+
+    pub fn max_players (self) -> usize {
+        self.planets[0].possession.len()
+    }
 }

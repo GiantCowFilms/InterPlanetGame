@@ -1,5 +1,6 @@
 use ipg_core::protocol::messages::{ MessageType, GameMetadata};
 use crate::GameServer;
+use ipg_core::game::Player;
 use ipg_core::game::Game;
 use crate::game_server::GameList;
 use std::sync::Arc;
@@ -50,9 +51,19 @@ impl GameServer {
                             Ok(())
                         },
                         MessageType::EnterGame(game_metadata) => {
-                            if let Ok(games) = instance.games.read() {
-                                games.get(&game_metadata.game_id);
-                                Ok(())
+                            if let Ok(mut games) = instance.games.write() {
+                                if let Some(game) = games.get_mut(&game_metadata.game_id) {
+                                    game.players.push(Arc::new(Player {
+                                        name: "Arthur Dent".to_string()
+                                    }));
+                                    let seralized = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
+                                        game_id: game_metadata.game_id.clone()
+                                    }));
+                                    let _ = sink.start_send(Message::from(seralized.unwrap()));
+                                    Ok(())
+                                } else {
+                                    Err(format!("Could not find a game with an id of \"{}\"", &game_metadata.game_id))
+                                }
                             } else {
                                 Err("RwLock poisoned, game state corrupted".to_string())
                             }

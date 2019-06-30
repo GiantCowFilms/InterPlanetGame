@@ -34,4 +34,4 @@ export default function createConnection (url: string = "ws://localhost:1234"): 
     return connection;
 }
 
-export const singleton: GameConnection = createConnection();
+export const gameConnectionSingleton: GameConnection = createConnection();

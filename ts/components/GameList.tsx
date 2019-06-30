@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import {singleton} from "../connection/index";
+import {gameConnectionSingleton} from "../connection/index";
 import { GameClient } from "inter-planet-game";
 import { ModeContext } from "../state/mode";
 
@@ -10,8 +10,8 @@ interface Props {
 function GameList() {
     const [games, setGames] = useState([]);
     useEffect(() => {
-        singleton.onEvent("GameList", () => {
-            setGames(singleton.client.game_list());
+        gameConnectionSingleton.onEvent("GameList", () => {
+            setGames(gameConnectionSingleton.client.game_list());
         });
     }, []);
 
@@ -25,7 +25,7 @@ function GameList() {
     };
 
     const createGame = () => {
-        singleton.socket.send(JSON.stringify({
+        gameConnectionSingleton.socket.send(JSON.stringify({
             "CreateGame": {
                 map_id: "Example Map"
             }

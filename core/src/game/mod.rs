@@ -1,10 +1,16 @@
 pub mod map;
 use std::sync::Arc;
 
+cfg_if! {
+    if #[cfg(target_arch = "wasm32")] {
+        use wasm_bindgen::prelude::*;
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Player {
-    name: String,
-    state: PlayerState
+    pub name: String,
+    // state: PlayerState
 }
 
 #[derive(Serialize, Deserialize)]
@@ -37,17 +43,18 @@ pub struct Galaxy {
     moves: Vec<Move>
 }
 
+//#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Serialize, Deserialize)]
 pub struct Game {
     map: map::Map,
     state: Option<Galaxy>,
-    players: Vec<Arc<Player>>
+    pub players: Vec<Arc<Player>>
 }
 
 impl Game {
     pub fn from_map(map: map::Map) -> Game {
         Game {
-            map: map,
+            map,
             players: Vec::new(),
             state: None
         }
