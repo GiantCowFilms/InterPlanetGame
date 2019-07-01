@@ -43,7 +43,8 @@ features = [
   "HtmlElement",
   "Node",
   "Window",
-  "console"
+  "console",
+  "WebSocket"
 ]
 
 [features]

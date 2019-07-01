@@ -2,23 +2,24 @@ use ipg_core::protocol::messages::{ MessageType , GameMetadata, GameList };
 use ipg_core::game::Game;
 use wasm_bindgen::prelude::*;
 use js_sys;
-
+use web_sys::{WebSocket};
 #[wasm_bindgen]
-#[derive(Default)]
 pub struct GameClient{
     game_list: Vec<GameMetadata>,
     // on_game_list: Vec<Box<Fn () -> () + 'static>>,
     current_game_state: Option<Game>,
     current_game: Option<GameMetadata>,
+    socket: WebSocket
 }
 
 #[wasm_bindgen]
 impl GameClient {
-    pub fn new () -> GameClient {
+    pub fn new (socket: WebSocket) -> GameClient {
         GameClient {
             game_list: Vec::new(),
             current_game: None,
             current_game_state: None,
+            socket
             // on_game_list: Vec::new()
         }
     }
@@ -41,6 +42,7 @@ impl GameClient {
         }
     }
 
+    /// Gets the complete list of games that the server is hosting.
     pub fn game_list(&self) -> JsValue {
         JsValue::from_serde(&self.game_list).unwrap()
     }
@@ -52,11 +54,13 @@ impl GameClient {
 
     }
 
-    // /// Calls a callback when the game_list changes.
-    // /// 
-    // pub fn on_game_list(&mut self, handler: js_sys::Function) {
-    //     self.on_game_list.push(Box::new(move || {
-    //         handler.call1(&JsValue::NULL, &JsValue::from_serde(&self.game_list).unwrap());
-    //     }));
-    // }
+    pub fn enter_game(&self,game_metadata: JsValue) {
+        if let Ok(game_metadata) = game_metadata.into_serde() as Result<GameMetadata,serde_json::Error>  {
+            let message = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
+                game_id: game_metadata.game_id.to_owned()
+            })).unwrap();
+            self.socket.send_with_str(message.as_str());
+        }
+    }
+    
 }

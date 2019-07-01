@@ -8,8 +8,8 @@ type GameConnection = {
 };
 
 export default function createConnection (url: string = "ws://localhost:1234"): GameConnection {
-    const client: GameClient = make();
     const socket: WebSocket = new WebSocket(url);
+    const client: GameClient = make(socket);
     const connection: GameConnection = {
         client,
         socket,

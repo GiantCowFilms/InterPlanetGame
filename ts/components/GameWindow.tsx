@@ -8,7 +8,7 @@ interface Props {
 function GameWindow (props: Props) {
     const canvas = useRef(null);
     useEffect(() => {
-        gameConnectionSingleton.client.join_game(props.game);
+        gameConnectionSingleton.client.enter_game(props.game);
     });
     return (
         <div>

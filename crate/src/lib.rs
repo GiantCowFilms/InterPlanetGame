@@ -6,7 +6,7 @@ extern crate serde_derive;
 extern crate wasm_bindgen;
 extern crate web_sys;
 use wasm_bindgen::prelude::*;
-
+use web_sys::{WebSocket};
 cfg_if! {
     // When the `console_error_panic_hook` feature is enabled, we can call the
     // `set_panic_hook` function to get better error messages if we ever panic.
@@ -39,9 +39,9 @@ mod game_client;
 
 // Called by our JS entry point to run the example.
 #[wasm_bindgen]
-pub fn make() -> game_client::GameClient {
+pub fn make(socket: WebSocket) -> game_client::GameClient {
     set_panic_hook();
 
-    game_client::GameClient::new()
+    game_client::GameClient::new(socket)
 }
 
