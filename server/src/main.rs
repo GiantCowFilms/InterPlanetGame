@@ -5,6 +5,7 @@ extern crate serde_derive;
 extern crate tokio;
 
 mod game_server;
+mod game;
 
 use self::game_server::map_manager;
 use self::game_server::GameServer;

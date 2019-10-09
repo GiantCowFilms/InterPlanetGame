@@ -3,6 +3,7 @@ use crate::GameServer;
 use ipg_core::game::Player;
 use ipg_core::game::Game;
 use crate::game_server::GameList;
+use crate::game::AsyncGameExecutor;
 use std::sync::Arc;
 use futures::sink::Sink;
 use futures::sync::mpsc::SendError;
@@ -52,14 +53,16 @@ impl GameServer {
                         },
                         MessageType::EnterGame(game_metadata) => {
                             if let Ok(mut games) = instance.games.write() {
-                                if let Some(game) = games.get_mut(&game_metadata.game_id) {
-                                    game.players.push(Arc::new(Player {
+                                if let Some(game_executor) = games.get_mut(&game_metadata.game_id) {
+                                    game_executor.game.players.push(Arc::new(Player {
                                         name: "Arthur Dent".to_string()
                                     }));
                                     let seralized = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
                                         game_id: game_metadata.game_id.clone()
                                     }));
                                     let _ = sink.start_send(Message::from(seralized.unwrap()));
+                                    // Subscribe to game state
+                                    
                                     Ok(())
                                 } else {
                                     Err(format!("Could not find a game with an id of \"{}\"", &game_metadata.game_id))

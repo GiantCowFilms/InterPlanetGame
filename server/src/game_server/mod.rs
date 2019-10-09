@@ -15,15 +15,16 @@ use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::{Error, Message};
 use tokio_tungstenite::WebSocketStream;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
 pub mod map_manager;
 pub mod message_handler;
+pub mod client;
+use crate::game::AsyncGameExecutor;
 
 use futures::sync::mpsc::SendError;
 use ipg_core::protocol::messages::GameMetadata;
 pub struct GameServer {
     port: u16,
-    games: RwLock<HashMap<String, Game>>,
+    games: RwLock<HashMap<String, AsyncGameExecutor>>,
     map_manager: Mutex<Box<map_manager::MapManager + Send>>,
 }
 
@@ -31,13 +32,13 @@ trait GameList {
     fn add_game(&mut self, game: Game) -> String;
 }
 
-impl GameList for HashMap<String, Game> {
+impl GameList for HashMap<String, AsyncGameExecutor> {
     fn add_game(&mut self, game: Game) -> String {
         let game_id: String = iter::repeat(())
             .map(|()| thread_rng().sample(Alphanumeric))
             .take(7)
             .collect();
-        self.insert(game_id.clone(), game);
+        self.insert(game_id.clone(), AsyncGameExecutor::new(game));
         game_id
     }
 }
@@ -84,6 +85,10 @@ impl GameServer {
     ///
     async fn handle_stream<'a>(instance: Arc<GameServer>, ws_stream: WebSocketStream<TcpStream>) {
         let (mut sink, mut stream) = ws_stream.split();
+        let client = self::client::Client {
+            sink: &mut sink,
+            stream: &mut stream
+        };
         tokio::spawn_async(async move {
             await!(GameServer::handle_new_client(instance.clone(), &mut sink));
             while let Some(message) = await!(stream.next()) {
@@ -122,9 +127,9 @@ impl GameServer {
                     games: games_metadata,
                 }));
                 let _ = sink.start_send(Message::from(seralized.unwrap()));
-                Ok(())
+                Ok(()) 
             }
-            _ => Err("Game state corrupted by poisned mutex.".to_string()),
+            Err(_) => Err("Game state corrupted by poisned mutex.".to_string()),
         };
         if let Err(err_msg) = result {
             let _ = sink.start_send(Message::from(err_msg));
