@@ -31,13 +31,13 @@ enum PlayerState {
 pub struct Planet {
     // If use a planet deseralized from an untrusted source, an attacker could 
     // undermine the integrety of the game by changing the planet's values
-    index: usize,
-    x: u32,
-    y: u32,
-    radius: f32,
-    multiplier: f32,
-    value: f32,
-    possession: Option<Arc<Player>>,
+    pub index: usize,
+    pub x: u32,
+    pub y: u32,
+    pub radius: f32,
+    pub multiplier: f32,
+    pub value: f32,
+    pub possession: Option<Arc<Player>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -49,9 +49,9 @@ pub struct Move {
 
 #[derive(Serialize, Deserialize)]
 pub struct Galaxy {
-    time: u32, //?
-    planets: Vec<Planet>,
-    moves: Vec<Move>
+    pub time: u32, //?
+    pub planets: Vec<Planet>,
+    pub moves: Vec<Move>
 }
 
 //#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]

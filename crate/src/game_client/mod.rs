@@ -2,7 +2,10 @@ use ipg_core::protocol::messages::{ MessageType , GameMetadata, GameList };
 use ipg_core::game::Game;
 use wasm_bindgen::prelude::*;
 use js_sys;
-use web_sys::{WebSocket};
+use web_sys::{WebSocket, HtmlCanvasElement};
+mod game_render;
+use self::game_render::GameRender;
+
 #[wasm_bindgen]
 pub struct GameClient{
     game_list: Vec<GameMetadata>,
@@ -63,4 +66,7 @@ impl GameClient {
         }
     }
     
+    pub fn set_render_target(&self, canvas: HtmlCanvasElement) {
+
+    }
 }
