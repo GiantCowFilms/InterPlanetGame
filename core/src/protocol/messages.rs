@@ -1,4 +1,4 @@
-use crate::game::{ Galaxy, GameConfig, Game };
+use crate::game::{ Galaxy, GameConfig, Game, Move };
 use serde::{Deserialize, Serialize};
 
 cfg_if! {
@@ -21,12 +21,6 @@ pub struct GameState {
 pub struct GameMove {
     to: u16,
     from: u16
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct TimedGameMove {
-    time: u64,
-    game_move: GameMove
 }
 
 #[derive(Deserialize, Serialize)]
@@ -65,7 +59,7 @@ pub enum MessageType {
     GameState(GameState),
     GameMove(GameMove),
     GamePlayers(GamePlayers),
-    TimedGameMove(TimedGameMove),
+    TimedGameMove(Move),
     StartGame,
     ExitGame,
     NewGame(GameMetadata),

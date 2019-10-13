@@ -98,14 +98,20 @@ pub enum GameEvent{
 
 #[derive(Default)]
 pub struct GameEventSource {
-    pub handlers: Vec<Box<FnMut(GameEvent) -> () + Send + Sync>>
+    pub handlers: Vec<Box<FnMut(&GameEvent) -> () + Send + Sync>>
 }
 
 impl GameEventSource {
-    pub fn on_event<H,F>(&mut self,handler: Box<H>) 
-        where H: FnMut(GameEvent) -> () + Send + Sync + 'static
+    pub fn on_event<H>(&mut self,handler: Box<H>) 
+        where H: FnMut(&GameEvent) -> () + Send + Sync + 'static
     {
         self.handlers.push(handler);
+    }
+
+    pub fn emit_event(&mut self, event: GameEvent) {
+        for handler in &mut self.handlers {
+            handler(&event);
+        }
     }
 }
 

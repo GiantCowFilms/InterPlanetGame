@@ -91,7 +91,11 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                                 if let Some(game_executor_mtx) = games.get_mut(&game_metadata.game_id) { 
                                     let mut game_executor = game_executor_mtx.lock().unwrap();
                                     if let Some(player) = &self.player {
-                                        game_executor.add_player(player.clone()).unwrap();                       
+                                        game_executor.add_player(player.clone()).unwrap();
+                                        let handler_sink = self.sink.clone();
+                                        game_executor.event_source.on_event(Box::new(move |event: &GameEvent| {
+                                            GameConnection::handle_game_event(handler_sink.clone(), event);
+                                        }));                
                                         let seralized = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
                                             game_id: game_metadata.game_id.clone()
                                         }));
