@@ -1,12 +1,12 @@
 pub mod map;
 use std::sync::Arc;
+use std::future::Future;
 use std::collections::VecDeque;
 use rand_xoshiro::Xoshiro128StarStar;
 use rand_xoshiro::rand_core::SeedableRng;
 use rand::RngCore;
 use rand::Rng;
-
-const PI: f32 = 3.141_592_653_589_793_2;
+use std::f32::consts::PI;
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -27,7 +27,7 @@ enum PlayerState {
     Gone
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Planet {
     // If use a planet deseralized from an untrusted source, an attacker could 
     // undermine the integrety of the game by changing the planet's values
@@ -40,14 +40,14 @@ pub struct Planet {
     pub possession: Option<Arc<Player>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Move {
     from: Planet,
     to: Planet,
     time: u32
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Galaxy {
     pub time: u32, //?
     pub planets: Vec<Planet>,
@@ -55,21 +55,27 @@ pub struct Galaxy {
 }
 
 //#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Game {
     pub map: map::Map,
     pub state: Option<Galaxy>,
     pub players: Vec<Arc<Player>>,
+    pub config: GameConfig
 }
-
 //assert_impl_all!(Game: Sync, Send);
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct GameConfig {
+    pub min_players: u32
+}
+
 impl Game {
-    pub fn from_map(map: map::Map) -> Game {
+    pub fn new(map: map::Map, config: GameConfig) -> Game {
         Game {
             map,
             players: Vec::new(),
-            state: None
+            state: None,
+            config
         }
     }
 }
@@ -78,9 +84,29 @@ type ModBuckets = VecDeque<(u32,Vec<u32>)>;
 
 pub struct GameExecutor {
     pub game: Game,
+    pub event_source: GameEventSource,
     pub completed_move_idx: usize,
     // Alternative use VecDeque
     pub modification_buckets: ModBuckets,
+}
+
+pub enum GameEvent{
+    Player(Arc<Player>),
+    Move(Move),
+    Start
+}
+
+#[derive(Default)]
+pub struct GameEventSource {
+    pub handlers: Vec<Box<FnMut(GameEvent) -> () + Send + Sync>>
+}
+
+impl GameEventSource {
+    pub fn on_event<H,F>(&mut self,handler: Box<H>) 
+        where H: FnMut(GameEvent) -> () + Send + Sync + 'static
+    {
+        self.handlers.push(handler);
+    }
 }
 
 const TICKS_PER_SHIP: u32 = 60;
@@ -90,8 +116,29 @@ impl GameExecutor {
     pub fn from_game(game: Game) -> GameExecutor {
         GameExecutor {
             game,
+            event_source: GameEventSource::default(),
             completed_move_idx: 0,
             modification_buckets: VecDeque::new()
+        }
+    }
+
+    pub fn add_player(&mut self, player: Arc<Player>) -> Result<(),String> {
+        if self.game.map.planets[0].possession.len() < self.game.players.len() {
+            self.game.players.push(player);
+            Ok(())
+        } else {
+            Err("Game is already full.".to_owned())
+        }
+    }
+
+    pub fn start_game(&mut self) -> Result<(),String> {
+        if self.game.state.is_none() {
+            Err("Cannot start game, it has already started.".to_owned())
+        } else if self.game.players.len() as u32 >= self.game.config.min_players {
+           Err("Cannot start game, insuffcient players".to_owned())
+        } else {
+           self.game.state = Some(self.game.map.to_galaxy(self.game.players.clone())?);
+            Ok(())
         }
     }
 

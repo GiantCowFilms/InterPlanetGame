@@ -1,4 +1,4 @@
-use crate::game::Galaxy;
+use crate::game::{ Galaxy, GameConfig, Game };
 use serde::{Deserialize, Serialize};
 
 cfg_if! {
@@ -14,7 +14,7 @@ pub struct SetName {
 
 #[derive(Deserialize,Serialize)]
 pub struct GameState {
-    galaxy: Galaxy
+    pub galaxy: Galaxy
 }
 
 #[derive(Deserialize, Serialize)]
@@ -31,7 +31,8 @@ pub struct TimedGameMove {
 
 #[derive(Deserialize, Serialize)]
 pub struct CreateGame {
-    pub map_id: String
+    pub map_id: String,
+    pub config: GameConfig
 }
 
 //#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -60,6 +61,7 @@ pub struct PlayerMetadata {
 pub enum MessageType {
     SetName(SetName),
     EnterGame(GameMetadata),
+    Game(Game),
     GameState(GameState),
     GameMove(GameMove),
     GamePlayers(GamePlayers),

@@ -1,4 +1,4 @@
-use ipg_core::protocol::messages::{ MessageType , GameMetadata, GameList, SetName };
+use ipg_core::protocol::messages::{ MessageType , GameMetadata, GameList, GameState, SetName };
 use ipg_core::game::Game;
 use wasm_bindgen::prelude::*;
 use js_sys;
@@ -12,6 +12,7 @@ pub struct GameClient{
     // on_game_list: Vec<Box<Fn () -> () + 'static>>,
     current_game_state: Option<Game>,
     current_game: Option<GameMetadata>,
+    current_game_render: Option<GameRender>,
     socket: WebSocket
 }
 
@@ -22,6 +23,7 @@ impl GameClient {
             game_list: Vec::new(),
             current_game: None,
             current_game_state: None,
+            current_game_render: None,
             socket
             // on_game_list: Vec::new()
         }
@@ -33,7 +35,7 @@ impl GameClient {
         match message {
             MessageType::NewGame(game_metadata) => {
                 self.game_list.push(game_metadata);
-                Some("GameList".to_string())
+                Some("NewGame".to_string())
             },
             MessageType::GameList(GameList {
                 games
@@ -41,6 +43,18 @@ impl GameClient {
                 self.game_list = games;
                 Some("GameList".to_string())
             },
+            MessageType::GameState(GameState {
+                galaxy
+            }) => {
+                if let Some(ref mut game) = self.current_game_state {
+                    game.state = Some(galaxy);
+                }
+                Some("GameState".to_string())
+            },
+            MessageType::Game(game) => {
+                self.current_game_state = Some(game);
+                Some("Game".to_string())
+            }
             _ => None
         }
     }
@@ -73,7 +87,21 @@ impl GameClient {
         }
     }
     
-    pub fn set_render_target(&self, canvas: HtmlCanvasElement) {
+    pub fn set_render_target(&mut self, canvas: HtmlCanvasElement) -> Result<(),JsValue> {
+        self.current_game_render = Some(GameRender::new(canvas)?);
+        Ok(())
+    }
 
+    pub fn render_game_frame(&mut self, time: u32) -> Result<(), JsValue> {
+        let game = self.current_game_state.as_ref().ok_or("No game state loaded.").map_err(|err| JsValue::from(err))?;
+        if let Some(ref galaxy) = game.state {
+            if time < galaxy.time {
+                return Err(JsValue::from("Cannot render frames from the past."));
+            };
+        }
+        if let Some(render) = &mut self.current_game_render {
+            render.render_galaxy(&game);
+        };
+        Ok(())
     }
 }

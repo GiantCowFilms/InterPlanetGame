@@ -27,7 +27,10 @@ function GameList() {
     const createGame = () => {
         gameConnectionSingleton.socket.send(JSON.stringify({
             "CreateGame": {
-                map_id: "Example Map"
+                map_id: "Example Map",
+                config: {
+                    min_players: 2
+                }
             }
         }));
     }
