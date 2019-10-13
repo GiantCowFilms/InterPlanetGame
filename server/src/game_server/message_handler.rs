@@ -71,6 +71,13 @@ impl GameServer {
                                 Err("RwLock poisoned, game state corrupted".to_string())
                             }
                             //Send game state
+                        },
+                        MessageType::SetName(name_data) => {
+                            //Replace player to avoid mutexes/refcells and such
+                            instance.player = Some(Arc::new(Player {
+                                    name: name_data.name
+                            }));
+                            Ok(())
                         }
                         _ => Err("The provided message type was not found.".to_string()),
                     }

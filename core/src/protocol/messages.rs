@@ -9,7 +9,7 @@ cfg_if! {
 
 #[derive(Deserialize, Serialize)]
 pub struct SetName {
-    name: String
+    pub name: String
 }
 
 #[derive(Deserialize,Serialize)]

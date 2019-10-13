@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import GameWindow from './components/GameWindow';
 import GameList from './components/GameList';
 import { mode, ModeContext } from './state/mode';
+import PlayerName from './components/PlayerName';
 type game_state = {
 
 }
@@ -19,6 +20,7 @@ function Root() {
     let [mode,setMode] = useState<mode>({
         type: "browse"
     });
+    let [playerName,setPlayerName] = useState(undefined);
     return <>
         <div>Inter-Planet Game</div>
         <ModeContext.Provider value={{
@@ -29,7 +31,10 @@ function Root() {
                 mode.type === "browse" ?
                     <GameList />
                 : mode.type === "game" ?
-                    <GameWindow game={mode.game} /> :
+                    playerName !== undefined ?
+                        <GameWindow game={mode.game} />
+                    : <PlayerName onSubmit={setPlayerName} />
+                :
                 undefined
             }
         </ModeContext.Provider>

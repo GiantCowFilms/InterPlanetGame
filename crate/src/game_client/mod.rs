@@ -1,4 +1,4 @@
-use ipg_core::protocol::messages::{ MessageType , GameMetadata, GameList };
+use ipg_core::protocol::messages::{ MessageType , GameMetadata, GameList, SetName };
 use ipg_core::game::Game;
 use wasm_bindgen::prelude::*;
 use js_sys;
@@ -55,6 +55,13 @@ impl GameClient {
 
     pub fn create_game(&self) {
 
+    }
+
+    pub fn set_name(&self, name: String) {
+        let message = serde_json::to_string(&MessageType::SetName(SetName {
+            name
+        })).unwrap();
+        self.socket.send_with_str(message.as_str());
     }
 
     pub fn enter_game(&self,game_metadata: JsValue) {
