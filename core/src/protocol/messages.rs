@@ -66,6 +66,7 @@ pub enum MessageType {
     GameMove(GameMove),
     GamePlayers(GamePlayers),
     TimedGameMove(TimedGameMove),
+    StartGame,
     ExitGame,
     NewGame(GameMetadata),
     GameList(GameList),

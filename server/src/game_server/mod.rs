@@ -16,15 +16,17 @@ use tokio_tungstenite::tungstenite::{Error, Message};
 use tokio_tungstenite::WebSocketStream;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 pub mod map_manager;
-pub mod message_handler;
-pub mod client;
-use crate::game::AsyncGameExecutor;
+pub mod connection;
+use self::connection::GameConnection;
 
 use futures::sync::mpsc::SendError;
 use ipg_core::protocol::messages::GameMetadata;
+use ipg_core::game::GameExecutor;
+use std::convert::Into;
+
 pub struct GameServer {
     port: u16,
-    games: RwLock<HashMap<String, AsyncGameExecutor>>,
+    games: RwLock<HashMap<String, Arc<Mutex<GameExecutor>>>>,
     map_manager: Mutex<Box<map_manager::MapManager + Send>>,
 }
 
@@ -32,13 +34,14 @@ trait GameList {
     fn add_game(&mut self, game: Game) -> String;
 }
 
-impl GameList for HashMap<String, AsyncGameExecutor> {
+impl GameList for HashMap<String, Arc<Mutex<GameExecutor>>>
+{
     fn add_game(&mut self, game: Game) -> String {
         let game_id: String = iter::repeat(())
             .map(|()| thread_rng().sample(Alphanumeric))
             .take(7)
             .collect();
-        self.insert(game_id.clone(), AsyncGameExecutor::new(game));
+        self.insert(game_id.clone(), Arc::new(Mutex::new(GameExecutor::from_game(game))));
         game_id
     }
 }
@@ -85,15 +88,12 @@ impl GameServer {
     ///
     async fn handle_stream<'a>(instance: Arc<GameServer>, ws_stream: WebSocketStream<TcpStream>) {
         let (mut sink, mut stream) = ws_stream.split();
-        let client = self::client::Client {
-            sink: &mut sink,
-            stream: &mut stream
-        };
         tokio::spawn_async(async move {
+            let mut connection = GameConnection::new();
             await!(GameServer::handle_new_client(instance.clone(), &mut sink));
-            while let Some(message) = await!(stream.next()) {
-                let message = message.unwrap();
-                await!(GameServer::handle_message(
+            while let Some(Ok(message)) = await!(stream.next()) {
+                let message = message;
+                await!(connection.handle_message(
                     instance.clone(),
                     &message,
                     &mut sink

@@ -1,10 +1,9 @@
-use ipg_core::protocol::messages::{ MessageType, GameMetadata};
+use ipg_core::protocol::messages::{ MessageType, GameMetadata, GameState};
 use crate::GameServer;
 use ipg_core::game::Player;
-use ipg_core::game::Game;
+use ipg_core::game::{ Game , GameExecutor};
 use crate::game_server::GameList;
-use crate::game::AsyncGameExecutor;
-use std::sync::Arc;
+use std::sync::{ Arc, Mutex };
 use futures::sink::Sink;
 use futures::sync::mpsc::SendError;
 use tokio_tungstenite::tungstenite::{Error, Message};
@@ -14,12 +13,25 @@ pub trait Captures<'a> {}
 
 impl<'a, T> Captures<'a> for T {}
 
-impl GameServer {
-    pub fn handle_message<'a: 'c, 'b: 'c, 'c>(
+pub struct GameConnection {
+    player: Option<Arc<Player>>,
+    current_game: Option<Arc<Mutex<GameExecutor>>>
+}
+
+impl GameConnection {
+    pub fn new() -> Self {
+        GameConnection {
+            player: None,
+            current_game: None
+        }
+    }
+
+    pub fn handle_message<'a: 'd, 'b: 'd, 'c: 'd, 'd>(
+        &'c mut self,
         instance: Arc<GameServer>,
         message: &'a Message,
         sink: &'b mut ((Sink<SinkItem = Message, SinkError = Error>) + Send),
-    ) -> impl Future<Output = ()> + Captures<'a> + Captures<'b> + 'c {
+    ) -> impl Future<Output = ()> + Captures<'a> + Captures<'b> + Captures<'c> + 'd {
         async move {
             let result = if let Ok(message_body) = message.to_text() {
                 if let Ok(message_data) = serde_json::from_str::<MessageType>(message_body) {
@@ -28,7 +40,7 @@ impl GameServer {
                             match (*instance).map_manager.lock() {
                                 Ok(maps) => { 
                                     if let Some(map) = maps.map_by_id(&game_settings.map_id) {
-                                        let game = Game::from_map((*map).clone());
+                                        let game = Game::new((*map).clone(),game_settings.config);
                                         match (*instance).games.write() {
                                             Ok(mut games) => {
                                                 let game_id = games.add_game(game);
@@ -53,17 +65,24 @@ impl GameServer {
                         },
                         MessageType::EnterGame(game_metadata) => {
                             if let Ok(mut games) = instance.games.write() {
-                                if let Some(game_executor) = games.get_mut(&game_metadata.game_id) {
-                                    game_executor.game.players.push(Arc::new(Player {
-                                        name: "Arthur Dent".to_string()
-                                    }));
-                                    let seralized = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
-                                        game_id: game_metadata.game_id.clone()
-                                    }));
-                                    let _ = sink.start_send(Message::from(seralized.unwrap()));
-                                    // Subscribe to game state
-                                    
-                                    Ok(())
+                                if let Some(game_executor_mtx) = games.get_mut(&game_metadata.game_id) { 
+                                    let mut game_executor = game_executor_mtx.lock().unwrap();
+                                    if let Some(player) = &self.player {
+                                        game_executor.add_player(player.clone()).unwrap();                       
+                                        let seralized = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
+                                            game_id: game_metadata.game_id.clone()
+                                        }));
+                                        let _ = sink.start_send(Message::from(seralized.unwrap()));
+                                        if game_executor.game.state.is_some() {
+                                            let seralized = serde_json::to_string(&MessageType::Game(game_executor.game.clone()));
+                                            let _ = sink.start_send(Message::from(seralized.unwrap()));
+                                        };
+                                        self.current_game = Some(game_executor_mtx.clone());
+                                        // Subscribe to game state
+                                        Ok(())
+                                    } else {
+                                        Err("Players must set a name before joining a game.".to_string())
+                                    }
                                 } else {
                                     Err(format!("Could not find a game with an id of \"{}\"", &game_metadata.game_id))
                                 }
@@ -74,11 +93,16 @@ impl GameServer {
                         },
                         MessageType::SetName(name_data) => {
                             //Replace player to avoid mutexes/refcells and such
-                            instance.player = Some(Arc::new(Player {
+                            self.player = Some(Arc::new(Player {
                                     name: name_data.name
                             }));
                             Ok(())
-                        }
+                        },
+                        MessageType::StartGame => {
+                            self.current_game.as_ref().ok_or("Player is not currently in a game".to_string()).and_then(|game_executor| {
+                                game_executor.lock().map_err(|_| "Poisoned mutex".to_string())?.start_game()
+                            })
+                        },
                         _ => Err("The provided message type was not found.".to_string()),
                     }
                 } else {
