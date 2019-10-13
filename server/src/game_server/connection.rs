@@ -17,7 +17,7 @@ impl<'a, T> Captures<'a> for T {}
 pub struct GameConnection<S> 
 where S: Sink<SinkItem = Message, SinkError = Error> + Send
 {
-    player: Option<Arc<Player>>,
+    player: Option<Player>,
     current_game: Option<Arc<Mutex<GameExecutor>>>,
     sink: Arc<Mutex<S>>,
     instance: Arc<GameServer>
@@ -91,7 +91,7 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                                 if let Some(game_executor_mtx) = games.get_mut(&game_metadata.game_id) { 
                                     let mut game_executor = game_executor_mtx.lock().unwrap();
                                     if let Some(player) = &self.player {
-                                        game_executor.add_player(player.clone()).unwrap();
+                                        self.player = Some(game_executor.add_player(player.clone()).unwrap());
                                         let handler_sink = self.sink.clone();
                                         game_executor.event_source.on_event(Box::new(move |event: &GameEvent| {
                                             GameConnection::handle_game_event(handler_sink.clone(), event);
@@ -120,16 +120,24 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                         },
                         MessageType::SetName(name_data) => {
                             //Replace player to avoid mutexes/refcells and such
-                            self.player = Some(Arc::new(Player {
-                                    name: name_data.name
-                            }));
+                            self.player = Some(Player {
+                                    name: name_data.name,
+                                    index: 0 //Garbag data
+                            });
                             Ok(())
                         },
                         MessageType::StartGame => {
-                            self.current_game.as_ref().ok_or("Player is not currently in a game".to_string()).and_then(|game_executor| {
+                            self.current_game.as_ref().ok_or_else(|| "Player is not currently in a game".to_string()).and_then(|game_executor| {
                                 game_executor.lock().map_err(|_| "Poisoned mutex".to_string())?.start_game()
                             })
                         },
+                        MessageType::GameMove(game_move) => {
+                            self.current_game.as_ref().ok_or_else(|| "Player is not currently in a game".to_string()).and_then(|game_executor_mtx| {
+                                let mut game_executor = game_executor_mtx.lock().map_err(|_| "Poisoned mutex".to_string())?;
+                                let timed_move = game_executor.create_move(game_move.from, game_move.to)?;
+                                game_executor.add_move(self.player.as_ref().unwrap(),timed_move)
+                            })
+                        }
                         _ => Err("The provided message type was not found.".to_string()),
                     }
                 } else {

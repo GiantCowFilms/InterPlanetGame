@@ -19,8 +19,8 @@ pub struct GameState {
 
 #[derive(Deserialize, Serialize)]
 pub struct GameMove {
-    to: u16,
-    from: u16
+    pub to: u16,
+    pub from: u16
 }
 
 #[derive(Deserialize, Serialize)]

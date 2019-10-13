@@ -50,7 +50,7 @@ impl Map {
     /// }]));
     /// ```
 
-    pub fn to_galaxy(&self, players: Vec<Arc<game::Player>>) -> Result<game::Galaxy, String> {
+    pub fn to_galaxy(&self, players: &mut Vec<game::Player>) -> Result<game::Galaxy, String> {
         if players.len() < 2 {
             return Err(String::from(
                 "Invalid map configuration. At least two players are required to create a galaxy.",
@@ -59,8 +59,10 @@ impl Map {
         let mut planets: Result<Vec<game::Planet>,String> = self.planets.iter().enumerate().map(|(index,planet)| {
             let mut possesion = match planet.possession.get(players.len() - 2) {
                 Some(0) => Ok(None),
-                Some(possesion_index) => match players.get(*possesion_index as usize - 1) {
-                    Some(possesion) => Ok(Some(possesion)),
+                Some(possesion_index) => match players.get_mut(*possesion_index as usize - 1) {
+                    Some(player) => { 
+                        Ok(Some(player))
+                    },
                     None => Err(format!("Error encoutnered parsing map. A planet's possessions property specifiies player {} of {} players.",possesion_index - 1, players.len() ))
                 },
                 None => Err(String::from("Error encoutnered parsing map. Planet's possessions property does not support the seleced player count. The map is corrupted."))
@@ -72,7 +74,7 @@ impl Map {
                 y: planet.y,
                 multiplier: planet.multiplier as f32,
                 value: planet.start_value as f32,
-                possession: possesion?.map(|player| {Arc::clone(player)})
+                possession: possesion?.map(|player| { player.index })
             })
         }).collect();
 

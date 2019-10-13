@@ -7,6 +7,7 @@ use rand_xoshiro::rand_core::SeedableRng;
 use rand::RngCore;
 use rand::Rng;
 use std::f32::consts::PI;
+use std::time::SystemTime;
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -14,8 +15,9 @@ cfg_if! {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Player {
+    pub index: usize,
     pub name: String,
     // state: PlayerState
 }
@@ -37,7 +39,7 @@ pub struct Planet {
     pub radius: f32,
     pub multiplier: f32,
     pub value: f32,
-    pub possession: Option<Arc<Player>>,
+    pub possession: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -59,7 +61,7 @@ pub struct Galaxy {
 pub struct Game {
     pub map: map::Map,
     pub state: Option<Galaxy>,
-    pub players: Vec<Arc<Player>>,
+    pub players: Vec<Player>,
     pub config: GameConfig
 }
 //assert_impl_all!(Game: Sync, Send);
@@ -83,6 +85,7 @@ impl Game {
 type ModBuckets = VecDeque<(u32,Vec<u32>)>;
 
 pub struct GameExecutor {
+    pub start_time: u128,
     pub game: Game,
     pub event_source: GameEventSource,
     pub completed_move_idx: usize,
@@ -118,9 +121,14 @@ impl GameEventSource {
 const TICKS_PER_SHIP: u32 = 60;
 const SHIP_SPEED: f32 = 5f32;
 
+fn get_millis() -> u128 {
+    SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
+}
+
 impl GameExecutor {
     pub fn from_game(game: Game) -> GameExecutor {
         GameExecutor {
+            start_time: 0,
             game,
             event_source: GameEventSource::default(),
             completed_move_idx: 0,
@@ -128,10 +136,12 @@ impl GameExecutor {
         }
     }
 
-    pub fn add_player(&mut self, player: Arc<Player>) -> Result<(),String> {
+    pub fn add_player(&mut self, mut player: Player) -> Result<Player,String> {
         if self.game.map.planets[0].possession.len() < self.game.players.len() {
+            player.index = self.game.players.len();
+            let player_cpy = player.clone();
             self.game.players.push(player);
-            Ok(())
+            Ok(player_cpy)
         } else {
             Err("Game is already full.".to_owned())
         }
@@ -143,7 +153,8 @@ impl GameExecutor {
         } else if self.game.players.len() as u32 >= self.game.config.min_players {
            Err("Cannot start game, insuffcient players".to_owned())
         } else {
-           self.game.state = Some(self.game.map.to_galaxy(self.game.players.clone())?);
+           self.game.state = Some(self.game.map.to_galaxy(&mut self.game.players)?);
+           self.start_time = get_millis();
             Ok(())
         }
     }
@@ -203,6 +214,30 @@ impl GameExecutor {
                 GameExecutor::process_move(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);
                 galaxy.time = game_move.time;
             }
+        }
+    }
+
+    pub fn create_move(&mut self, from: u16, to: u16) -> Result<Move,String> {
+        let galaxy = self.game.state.as_mut().ok_or_else(|| "Game has not been started.".to_owned())?;
+        Ok(Move {
+            to: galaxy.planets[to as usize].clone(),
+            from: galaxy.planets[from as usize].clone(),
+            time: self.get_time()
+        })
+    }
+
+    pub fn get_time(&self) -> u32 {
+        ((get_millis() - self.start_time)/17) as u32
+    }
+
+    pub fn add_move(&mut self, player: &Player,game_move: Move) -> Result<(),String> {
+        self.step_to(game_move.time);
+        let galaxy = self.game.state.as_mut().ok_or_else(|| "Game has not been started.".to_owned())?;
+        if galaxy.planets[game_move.to.index].possession.map_or(false,|idx| player.index != idx) {
+            Err("Planet not owned by player.".to_owned())
+        } else {
+            galaxy.moves.push(game_move);
+            Ok(())
         }
     }
 }
