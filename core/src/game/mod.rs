@@ -42,9 +42,9 @@ pub struct Planet {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Move {
-    from: Planet,
-    to: Planet,
-    time: u32
+    pub from: Planet,
+    pub to: Planet,
+    pub time: u32
 }
 
 #[derive(Serialize, Deserialize, Clone)]

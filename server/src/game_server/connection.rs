@@ -1,7 +1,8 @@
 use ipg_core::protocol::messages::{ MessageType, GameMetadata, GameState};
+use ipg_core::protocol::messages;
 use crate::GameServer;
-use ipg_core::game::Player;
-use ipg_core::game::{ Game , GameExecutor};
+use ipg_core::game;
+use ipg_core::game::{ Player, Game, GameExecutor, GameEvent};
 use crate::game_server::GameList;
 use std::sync::{ Arc, Mutex };
 use futures::sink::Sink;
@@ -13,35 +14,57 @@ pub trait Captures<'a> {}
 
 impl<'a, T> Captures<'a> for T {}
 
-pub struct GameConnection {
+pub struct GameConnection<S> 
+where S: Sink<SinkItem = Message, SinkError = Error> + Send
+{
     player: Option<Arc<Player>>,
-    current_game: Option<Arc<Mutex<GameExecutor>>>
+    current_game: Option<Arc<Mutex<GameExecutor>>>,
+    sink: Arc<Mutex<S>>,
+    instance: Arc<GameServer>
 }
 
-impl GameConnection {
-    pub fn new() -> Self {
+impl<S> GameConnection<S> 
+where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
+{
+    pub fn new(instance: Arc<GameServer>, sink: S) -> Self {
         GameConnection {
             player: None,
-            current_game: None
+            current_game: None,
+            sink: Arc::new(Mutex::new(sink)),
+            instance
         }
     }
 
-    pub fn handle_message<'a: 'd, 'b: 'd, 'c: 'd, 'd>(
-        &'c mut self,
-        instance: Arc<GameServer>,
+    fn handle_game_event(sink: Arc<Mutex<S>>, event: &GameEvent) {
+        use ipg_core::game::GameEvent::Move;
+        match event {
+            Start => {
+                let seralized = serde_json::to_string(&MessageType::StartGame).unwrap();
+                sink.lock().unwrap().start_send(Message::from(seralized));
+            },
+            Move(game_move) => {
+                let seralized = serde_json::to_string(&MessageType::TimedGameMove(game_move.clone())).unwrap();
+                sink.lock().unwrap().start_send(Message::from(seralized));
+            }
+            _ => {}
+        }
+    }
+
+    pub fn handle_message<'a: 'c, 'b: 'c, 'c>(
+        &'b mut self,
         message: &'a Message,
-        sink: &'b mut ((Sink<SinkItem = Message, SinkError = Error>) + Send),
-    ) -> impl Future<Output = ()> + Captures<'a> + Captures<'b> + Captures<'c> + 'd {
+    ) -> impl Future<Output = ()> + Captures<'a> + Captures<'b> + 'c {
         async move {
+            let mut sink = self.sink.lock().unwrap();
             let result = if let Ok(message_body) = message.to_text() {
                 if let Ok(message_data) = serde_json::from_str::<MessageType>(message_body) {
                     match message_data {
                         MessageType::CreateGame(game_settings) => {
-                            match (*instance).map_manager.lock() {
+                            match self.instance.map_manager.lock() {
                                 Ok(maps) => { 
                                     if let Some(map) = maps.map_by_id(&game_settings.map_id) {
                                         let game = Game::new((*map).clone(),game_settings.config);
-                                        match (*instance).games.write() {
+                                        match self.instance.games.write() {
                                             Ok(mut games) => {
                                                 let game_id = games.add_game(game);
                                                 let seralized = serde_json::to_string(&MessageType::NewGame(GameMetadata {
@@ -64,7 +87,7 @@ impl GameConnection {
                             Ok(())
                         },
                         MessageType::EnterGame(game_metadata) => {
-                            if let Ok(mut games) = instance.games.write() {
+                            if let Ok(mut games) = self.instance.games.write() {
                                 if let Some(game_executor_mtx) = games.get_mut(&game_metadata.game_id) { 
                                     let mut game_executor = game_executor_mtx.lock().unwrap();
                                     if let Some(player) = &self.player {
@@ -119,6 +142,32 @@ impl GameConnection {
                     ));
                 }
             };
+        }
+    }
+
+    pub async fn handle_new_client(
+        &mut self
+    ) {
+        use ipg_core::protocol::messages::{GameList, MessageType};
+        let mut sink = self.sink.lock().unwrap();
+        let result = match self.instance.games.read() {
+            Ok(mut games) => {
+                let games_metadata = games
+                    .iter()
+                    .map(|(key, val)| GameMetadata {
+                        game_id: key.clone(),
+                    })
+                    .collect();
+                let seralized = serde_json::to_string(&MessageType::GameList(GameList {
+                    games: games_metadata,
+                }));
+                let _ = sink.start_send(Message::from(seralized.unwrap()));
+                Ok(()) 
+            }
+            Err(_) => Err("Game state corrupted by poisned mutex.".to_string()),
+        };
+        if let Err(err_msg) = result {
+            let _ = sink.start_send(Message::from(err_msg));
         }
     }
 }

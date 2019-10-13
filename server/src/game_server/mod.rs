@@ -89,15 +89,11 @@ impl GameServer {
     async fn handle_stream<'a>(instance: Arc<GameServer>, ws_stream: WebSocketStream<TcpStream>) {
         let (mut sink, mut stream) = ws_stream.split();
         tokio::spawn_async(async move {
-            let mut connection = GameConnection::new();
-            await!(GameServer::handle_new_client(instance.clone(), &mut sink));
+            let mut connection = GameConnection::new(instance.clone(),sink);
+            await!(connection.handle_new_client());
             while let Some(Ok(message)) = await!(stream.next()) {
                 let message = message;
-                await!(connection.handle_message(
-                    instance.clone(),
-                    &message,
-                    &mut sink
-                ));
+                await!(connection.handle_message(&message));
                 if let Ok(text) = message.into_text() {
                     // sink.start_send(Message::from(format!(
                     //     "You sent a message containing {}.",
@@ -107,32 +103,5 @@ impl GameServer {
                 };
             }
         })
-    }
-
-    /// Runs actions that need be run when clients join. Welcome protocol.
-    async fn handle_new_client(
-        instance: Arc<GameServer>,
-        sink: &mut ((Sink<SinkItem = Message, SinkError = Error>) + Send),
-    ) {
-        use ipg_core::protocol::messages::{GameList, MessageType};
-        let result = match (*instance).games.read() {
-            Ok(mut games) => {
-                let games_metadata = games
-                    .iter()
-                    .map(|(key, val)| GameMetadata {
-                        game_id: key.clone(),
-                    })
-                    .collect();
-                let seralized = serde_json::to_string(&MessageType::GameList(GameList {
-                    games: games_metadata,
-                }));
-                let _ = sink.start_send(Message::from(seralized.unwrap()));
-                Ok(()) 
-            }
-            Err(_) => Err("Game state corrupted by poisned mutex.".to_string()),
-        };
-        if let Err(err_msg) = result {
-            let _ = sink.start_send(Message::from(err_msg));
-        }
     }
 }
