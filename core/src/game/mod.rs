@@ -137,7 +137,7 @@ impl GameExecutor {
     }
 
     pub fn add_player(&mut self, mut player: Player) -> Result<Player,String> {
-        if self.game.map.planets[0].possession.len() < self.game.players.len() {
+        if self.game.map.planets[0].possession.len() > self.game.players.len() {
             player.index = self.game.players.len();
             let player_cpy = player.clone();
             self.game.players.push(player);
