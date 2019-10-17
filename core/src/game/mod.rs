@@ -46,7 +46,8 @@ pub struct Planet {
 pub struct Move {
     pub from: Planet,
     pub to: Planet,
-    pub time: u32
+    pub armada_size: u32,
+    pub time: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -101,19 +102,19 @@ pub enum GameEvent{
 
 #[derive(Default)]
 pub struct GameEventSource {
-    pub handlers: Vec<Box<FnMut(&GameEvent) -> () + Send + Sync>>
+    pub handlers: Vec<Box<FnMut(&GameEvent,&mut Game) -> () + Send + Sync>>
 }
 
 impl GameEventSource {
     pub fn on_event<H>(&mut self,handler: Box<H>) 
-        where H: FnMut(&GameEvent) -> () + Send + Sync + 'static
+        where H: FnMut(&GameEvent,&mut Game) -> () + Send + Sync + 'static
     {
         self.handlers.push(handler);
     }
 
-    pub fn emit_event(&mut self, event: GameEvent) {
+    pub fn emit_event(&mut self, event: GameEvent, game: &mut Game) {
         for handler in &mut self.handlers {
-            handler(&event);
+            handler(&event, game);
         }
     }
 }
@@ -123,6 +124,26 @@ const SHIP_SPEED: f32 = 5f32;
 
 fn get_millis() -> u128 {
     SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
+}
+
+impl Move {
+    pub fn start_positions(&self) -> impl Iterator<Item=(f32,f32)> {
+        let mut rng = Xoshiro128StarStar::seed_from_u64(827_803_098);
+        let radius = self.from.radius;
+        (0..self.armada_size).map(move |_| {
+            let a: f32 = 2f32 * PI * rng.gen::<f32>();
+            let radius = rng.gen::<f32>().sqrt() * radius;
+            (radius * a.cos(), radius * a.sin())
+        })
+    }
+
+    pub fn end_time(&self) -> u32 {
+        let dist = (
+            ((self.from.x - self.to.y) as f32).powf(2.0) + 
+            ((self.from.y - self.to.y) as f32).powf(2.0)).sqrt() + 
+            self.from.radius - self.to.radius;
+        (dist/SHIP_SPEED) as u32 + self.time
+    }
 }
 
 impl GameExecutor {
@@ -148,14 +169,15 @@ impl GameExecutor {
     }
 
     pub fn start_game(&mut self) -> Result<(),String> {
-        if self.game.state.is_none() {
+        if self.game.state.is_some() {
             Err("Cannot start game, it has already started.".to_owned())
-        } else if self.game.players.len() as u32 >= self.game.config.min_players {
+        } else if (self.game.players.len() as u32) < self.game.config.min_players {
            Err("Cannot start game, insuffcient players".to_owned())
         } else {
            self.game.state = Some(self.game.map.to_galaxy(&mut self.game.players)?);
            self.start_time = get_millis();
-            Ok(())
+           self.event_source.emit_event(GameEvent::Start,&mut self.game);
+           Ok(())
         }
     }
 
@@ -170,13 +192,9 @@ impl GameExecutor {
             panic!("Moves should only be processed on a game state that matches the move time.");
         }
 
-        let armada = game_move.from.value as u32 / 2;
+        let armada = game_move.armada_size;
         planets[game_move.from.index].value -= armada as f32;
-        let mut rng = Xoshiro128StarStar::seed_from_u64(827_803_098);
-        for i in 0..armada {
-            let a: f32 = 2f32 * PI * rng.gen::<f32>();
-            let radius = rng.gen::<f32>().sqrt() * game_move.from.radius;
-            let ship_pos = (radius * a.cos(), radius * a.sin());
+        for ship_pos in game_move.start_positions() {
             let dist = ((ship_pos.0 - game_move.to.x as f32).powf(2.0) + (ship_pos.1 - game_move.to.y as f32).powf(2.0)).sqrt() - game_move.to.radius;
             let arrival = (dist/SHIP_SPEED) as u32;
             let bucket_idx = arrival - mod_buckets[0].0;
@@ -218,11 +236,14 @@ impl GameExecutor {
     }
 
     pub fn create_move(&mut self, from: u16, to: u16) -> Result<Move,String> {
+        let time = self.get_time();
+        self.step_to(time);
         let galaxy = self.game.state.as_mut().ok_or_else(|| "Game has not been started.".to_owned())?;
         Ok(Move {
             to: galaxy.planets[to as usize].clone(),
             from: galaxy.planets[from as usize].clone(),
-            time: self.get_time()
+            armada_size: galaxy.planets[from as usize].value as u32 / 2,
+            time
         })
     }
 

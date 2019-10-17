@@ -6,21 +6,32 @@ interface Props {
 }
 
 function GameWindow (props: Props) {
-    const canvas = useRef(null);
+    const canvasTop = useRef(null);
+    const canvasBottom = useRef(null);
     const players = useState([]);
+    const [gameStarted,setGameStarted] = useState(false);
+    const startGame = () => {
+        gameConnectionSingleton.client.start_game();
+    }
     useEffect(() => {
         gameConnectionSingleton.client.enter_game(props.game);
-        gameConnectionSingleton.client.set_render_target(canvas.current);
-        let gameStarted = false;
+        gameConnectionSingleton.client.set_render_target(canvasTop.current,canvasBottom.current);
         // game is implictly started when the first GameState is sent
         gameConnectionSingleton.onEvent("Game", () => {
-            gameStarted = true;
+            setGameStarted(true);
             gameConnectionSingleton.client.render_game_frame(5000000);
         });
-    },[canvas,props.game]);
+    },[canvasTop,canvasBottom,props.game]);
     return (
-        <div>
-            <canvas id="game-canvas" ref={canvas} >
+        <div style={{
+            "position": "relative"
+        }}>
+            {gameStarted ? undefined : <div onClick={startGame}>Start Game!</div>}
+            <canvas id="game-canvas-top" ref={canvasTop} style={{
+                "position": "absolute"
+            }} >
+            </canvas>
+            <canvas id="game-canvas-bottom" ref={canvasBottom} >
             </canvas>
         </div>
     );

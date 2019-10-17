@@ -86,9 +86,14 @@ impl GameClient {
             self.socket.send_with_str(message.as_str());
         }
     }
+
+    pub fn start_game(&self) -> Result<(),JsValue> {
+        let message = serde_json::to_string(&MessageType::StartGame).unwrap();
+        self.socket.send_with_str(message.as_str())
+    }
     
-    pub fn set_render_target(&mut self, canvas: HtmlCanvasElement) -> Result<(),JsValue> {
-        self.current_game_render = Some(GameRender::new(canvas)?);
+    pub fn set_render_target(&mut self, canvas_top: HtmlCanvasElement, canvas_bottom: HtmlCanvasElement) -> Result<(),JsValue> {
+        self.current_game_render = Some(GameRender::new(canvas_top,canvas_bottom)?);
         Ok(())
     }
 

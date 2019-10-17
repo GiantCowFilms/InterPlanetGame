@@ -35,16 +35,20 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
         }
     }
 
-    fn handle_game_event(sink: Arc<Mutex<S>>, event: &GameEvent) {
+    fn handle_game_event(sink: Arc<Mutex<S>>, game: &mut Game, event: &GameEvent) {
         use ipg_core::game::GameEvent::Move;
+        let mut sink = sink.lock().unwrap();
+        //let mut executor = executor.lock().unwrap();
         match event {
             Start => {
                 let seralized = serde_json::to_string(&MessageType::StartGame).unwrap();
-                sink.lock().unwrap().start_send(Message::from(seralized));
+                sink.start_send(Message::from(seralized));
+                let seralized = serde_json::to_string(&MessageType::Game(game.clone()));
+                let _ = sink.start_send(Message::from(seralized.unwrap()));
             },
             Move(game_move) => {
                 let seralized = serde_json::to_string(&MessageType::TimedGameMove(game_move.clone())).unwrap();
-                sink.lock().unwrap().start_send(Message::from(seralized));
+                sink.start_send(Message::from(seralized));
             }
             _ => {}
         }
@@ -55,11 +59,11 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
         message: &'a Message,
     ) -> impl Future<Output = ()> + Captures<'a> + Captures<'b> + 'c {
         async move {
-            let mut sink = self.sink.lock().unwrap();
             let result = if let Ok(message_body) = message.to_text() {
                 if let Ok(message_data) = serde_json::from_str::<MessageType>(message_body) {
                     match message_data {
                         MessageType::CreateGame(game_settings) => {
+                            let mut sink = self.sink.lock().unwrap();
                             match self.instance.map_manager.lock() {
                                 Ok(maps) => { 
                                     if let Some(map) = maps.map_by_id(&game_settings.map_id) {
@@ -83,18 +87,20 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                             }
                         },
                         MessageType::ExitGame => {
+                                                        let mut sink = self.sink.lock().unwrap();
                             let _ = sink.start_send(Message::from("ExitGame"));
                             Ok(())
                         },
                         MessageType::EnterGame(game_metadata) => {
+                                                        let mut sink = self.sink.lock().unwrap();
                             if let Ok(mut games) = self.instance.games.write() {
                                 if let Some(game_executor_mtx) = games.get_mut(&game_metadata.game_id) { 
                                     let mut game_executor = game_executor_mtx.lock().unwrap();
                                     if let Some(player) = &self.player {
                                         self.player = Some(game_executor.add_player(player.clone()).unwrap());
                                         let handler_sink = self.sink.clone();
-                                        game_executor.event_source.on_event(Box::new(move |event: &GameEvent| {
-                                            GameConnection::handle_game_event(handler_sink.clone(), event);
+                                        game_executor.event_source.on_event(Box::new(move |event: &GameEvent, game: &mut Game| {
+                                            GameConnection::handle_game_event(handler_sink.clone(), game, event);
                                         }));                
                                         let seralized = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
                                             game_id: game_metadata.game_id.clone()
@@ -149,6 +155,7 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
             match result {
                 Ok(_) => (),
                 Err(e) => {
+                    let mut sink = self.sink.lock().unwrap();
                     let _ = sink.start_send(Message::from(
                         serde_json::to_string(&MessageType::Error(e)).unwrap()
                     ));
