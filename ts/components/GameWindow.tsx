@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, MouseEvent } from 'react';
 import {gameConnectionSingleton} from "../connection/index";
 
 interface Props {
@@ -12,6 +12,15 @@ function GameWindow (props: Props) {
     const [gameStarted,setGameStarted] = useState(false);
     const startGame = () => {
         gameConnectionSingleton.client.start_game();
+    }
+    const MouseEvent = (e: MouseEvent) => {
+        // This is awful:
+        const rect = (Array.from(canvasTop.current.parentElement.children)
+            .find((child: any) => child.id === "game-canvas-top") as any)
+            .getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        gameConnectionSingleton.client.mouse_event(x,y);
     }
     useEffect(() => {
         gameConnectionSingleton.client.enter_game(props.game);
@@ -29,7 +38,7 @@ function GameWindow (props: Props) {
             {gameStarted ? undefined : <div onClick={startGame}>Start Game!</div>}
             <canvas id="game-canvas-top" ref={canvasTop} style={{
                 "position": "absolute"
-            }} >
+            }} onMouseDown={MouseEvent} onMouseUp={MouseEvent}>
             </canvas>
             <canvas id="game-canvas-bottom" ref={canvasBottom} >
             </canvas>

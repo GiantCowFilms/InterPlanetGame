@@ -1,5 +1,5 @@
-use ipg_core::protocol::messages::{ MessageType , GameMetadata, GameList, GameState, SetName };
-use ipg_core::game::Game;
+use ipg_core::protocol::messages::{ MessageType , GameMetadata, GameList, GameState, SetName , GameMove};
+use ipg_core::game::{ Game, Planet };
 use wasm_bindgen::prelude::*;
 use js_sys;
 use web_sys::{WebSocket, HtmlCanvasElement};
@@ -13,6 +13,7 @@ pub struct GameClient{
     current_game_state: Option<Game>,
     current_game: Option<GameMetadata>,
     current_game_render: Option<GameRender>,
+    selected_planet: Option<Planet>, //Todo maybe move this somewhere else?
     socket: WebSocket
 }
 
@@ -24,6 +25,7 @@ impl GameClient {
             current_game: None,
             current_game_state: None,
             current_game_render: None,
+            selected_planet: None,
             socket
             // on_game_list: Vec::new()
         }
@@ -109,4 +111,33 @@ impl GameClient {
         };
         Ok(())
     }
+
+    pub fn mouse_event(&mut self, x: f32, y: f32) -> Result<(),JsValue> {
+        let galaxy = self.current_game_state.as_ref().and_then(|game| { game.state.as_ref() }).ok_or("No game state loaded.").map_err(|err| JsValue::from(err))?;
+        let mut selected_planet = None;
+        for planet in &galaxy.planets {
+            if planet.radius.powf(2f32) < (planet.x as f32 - x).powf(2f32) + (planet.y as f32 - y).powf(2f32) {
+                selected_planet = Some(planet);
+                break;
+            }
+        };
+        println!("{}",selected_planet.is_none());
+        if let Some(selected_planet) = selected_planet {
+            if selected_planet.possession.map(|p| p != 0).unwrap_or(false) {
+                self.selected_planet = Some(selected_planet.clone());
+            } else if let Some(source_planet) = &self.selected_planet {
+                self.make_move(&source_planet,selected_planet);
+                self.selected_planet = None;
+            }
+        }
+        Ok(())
+    }
+
+    fn make_move(&self, from: &Planet, to: &Planet) {
+        let message = serde_json::to_string(&MessageType::GameMove(GameMove {
+            to: to.index as u16,
+            from: from.index as u16
+        })).unwrap();
+        self.socket.send_with_str(message.as_str());
+    }  
 }
