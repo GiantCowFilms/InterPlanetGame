@@ -119,8 +119,8 @@ impl GameEventSource {
     }
 }
 
-const TICKS_PER_SHIP: u32 = 60;
-const SHIP_SPEED: f32 = 5f32;
+const TICKS_PER_SHIP: u32 = 3600;
+pub const SHIP_SPEED: f32 = 0.5f32;
 
 fn get_millis() -> u128 {
     SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
