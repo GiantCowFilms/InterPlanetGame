@@ -12,8 +12,12 @@
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": true
+            "environment": [{
+                "name": "RUST_BACKTRACE",
+                "value": "1"
+            }],
+            "externalConsole": true,
+            "preLaunchTask": "cargo build"
         }
     ]
 }
