@@ -83,7 +83,7 @@ impl Game {
     }
 }
 
-type ModBuckets = VecDeque<(u32,Vec<u32>)>;
+type ModBuckets = VecDeque<Option<(u32,Vec<u32>)>>;
 
 pub struct GameExecutor {
     pub start_time: u128,
@@ -127,21 +127,32 @@ fn get_millis() -> u128 {
 }
 
 impl Move {
-    pub fn start_positions(&self) -> impl Iterator<Item=(f32,f32)> {
+    pub fn start_positions<'a>(&'a self) -> impl Iterator<Item=(f32,f32)> + 'a {
         let mut rng = Xoshiro128StarStar::seed_from_u64(827_803_098);
         let radius = self.from.radius;
+        let x = self.from.x as f32;
+        let y = self.from.y as f32;
         (0..self.armada_size).map(move |_| {
             let a: f32 = 2f32 * PI * rng.gen::<f32>();
             let radius = rng.gen::<f32>().sqrt() * radius;
-            (radius * a.cos(), radius * a.sin())
+            (x as f32 + radius * a.cos(), y as f32 + radius * a.sin())
         })
     }
 
+    fn dist(&self) -> f32 {
+        (
+            (self.from.x as f32 - self.to.y  as f32).powf(2.0) + 
+            (self.from.y  as f32 - self.to.y  as f32).powf(2.0)
+        ).sqrt()
+    }
+
     pub fn end_time(&self) -> u32 {
-        let dist = (
-            ((self.from.x - self.to.y) as f32).powf(2.0) + 
-            ((self.from.y - self.to.y) as f32).powf(2.0)).sqrt() + 
-            self.from.radius - self.to.radius;
+        let dist = self.dist()  + self.from.radius - self.to.radius;
+        (dist/SHIP_SPEED) as u32 + self.time
+    }
+
+    pub fn first_arrival_time(&self) -> u32 {
+        let dist = self.dist() - self.from.radius - self.to.radius;
         (dist/SHIP_SPEED) as u32 + self.time
     }
 }
@@ -187,6 +198,7 @@ impl GameExecutor {
         };
     }
 
+    #[inline(never)]
     fn process_move(time: &mut u32, planets: &mut Vec<Planet>, mod_buckets: &mut ModBuckets, game_move: &Move) {
         if  *time != game_move.time {
             panic!("Moves should only be processed on a game state that matches the move time.");
@@ -194,44 +206,60 @@ impl GameExecutor {
 
         let armada = game_move.armada_size;
         planets[game_move.from.index].value -= armada as f32;
+        let first_time = game_move.first_arrival_time();
         for ship_pos in game_move.start_positions() {
             let dist = ((ship_pos.0 - game_move.to.x as f32).powf(2.0) + (ship_pos.1 - game_move.to.y as f32).powf(2.0)).sqrt() - game_move.to.radius;
-            let arrival = (dist/SHIP_SPEED) as u32;
-            let bucket_idx = arrival - mod_buckets[0].0;
-            let cap = if arrival - mod_buckets[0].0 > mod_buckets.len() as u32 {
-                arrival - mod_buckets[0].0 - mod_buckets.len() as u32
+            // Time of arrival
+            let arrival = (dist/SHIP_SPEED) as u32 + game_move.time;
+            // Bucket index is offset from the oldest bucket
+            let first_bucket_time = mod_buckets.get(0).and_then(|o| o.as_ref()).map(|v|v.0).unwrap_or(first_time);
+            let bucket_idx = (arrival - first_bucket_time) as usize;
+            let cap = ((arrival - first_bucket_time) as usize + 1).max(mod_buckets.len());
+            mod_buckets.resize(cap,None);
+            if let Some(ref mut bucket) = mod_buckets[bucket_idx]  {
+                bucket.1[game_move.to.index] += 1;
             } else {
-                0
+                mod_buckets[bucket_idx] = Some((arrival,{ 
+                    let mut vec = vec![0; planets.len()];
+                    vec[game_move.to.index] += 1;
+                    vec
+                }));
             };
-            if mod_buckets[bucket_idx as usize].1.is_empty() {
-                mod_buckets[bucket_idx as usize].1.reserve(planets.len());
-            };
-            mod_buckets[game_move.to.index].1[game_move.to.index] += 1;
         }
     }
 
     fn apply_buckets(time: &mut u32, planets: &mut Vec<Planet>, mod_buckets: &mut ModBuckets, target_time: u32) {
         let mut prev_time = *time;
-        while mod_buckets[0].0 <= target_time{
-            if let Some(bucket) = mod_buckets.pop_front() {
+        while !mod_buckets.is_empty() && mod_buckets[0].as_ref().map(|b| b.0 <= target_time).unwrap_or(true) {
+            if let Some(bucket) = mod_buckets.pop_front().and_then(std::convert::identity) {
                 GameExecutor::spawn_ships(planets,bucket.0 - prev_time);
                 prev_time = bucket.0;
                 for (i, planet) in planets.iter_mut().enumerate() {
                     planet.value -= bucket.1[i] as f32;
                 }
             }
-        }
+        };
+        GameExecutor::spawn_ships(planets,target_time - prev_time);
     }
 
     pub fn step_to(&mut self, target_time: u32) {
         if let Some(ref mut galaxy) = self.game.state {
             let prev_time = galaxy.time;
-            let new_moves = galaxy.moves.iter().skip(self.completed_move_idx).filter(|game_move| game_move.time > prev_time && game_move.time <= target_time);
+            println!("{}",galaxy.time);
+            let new_moves = galaxy.moves.iter().skip(self.completed_move_idx).filter(|game_move| {
+                println!("result: {},prev_time: {}, target_time: {}, move.time: {}",game_move.time >= prev_time && game_move.time <= target_time, prev_time, target_time, game_move.time);
+                // >= in first condition might result in double processing moves
+                game_move.time >= prev_time && game_move.time <= target_time 
+            });
             for game_move in new_moves {
                 GameExecutor::apply_buckets(&mut galaxy.time, &mut galaxy.planets,&mut self.modification_buckets, game_move.time);
-                GameExecutor::process_move(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);
                 galaxy.time = game_move.time;
-            }
+                GameExecutor::process_move(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);
+            };
+            if galaxy.time < target_time {
+                GameExecutor::apply_buckets(&mut galaxy.time, &mut galaxy.planets,&mut self.modification_buckets, target_time);
+            };
+            galaxy.time = target_time;
         }
     }
 
@@ -254,10 +282,11 @@ impl GameExecutor {
     pub fn add_move(&mut self, player: &Player,game_move: Move) -> Result<(),String> {
         self.step_to(game_move.time);
         let galaxy = self.game.state.as_mut().ok_or_else(|| "Game has not been started.".to_owned())?;
-        if galaxy.planets[game_move.to.index].possession.map_or(false,|idx| player.index != idx) {
+        if galaxy.planets[game_move.from.index].possession.map_or(false,|idx| player.index != idx) {
             Err("Planet not owned by player.".to_owned())
         } else {
-            galaxy.moves.push(game_move);
+            galaxy.moves.push(game_move.clone());
+            self.event_source.emit_event(GameEvent::Move(game_move), &mut self.game);
             Ok(())
         }
     }

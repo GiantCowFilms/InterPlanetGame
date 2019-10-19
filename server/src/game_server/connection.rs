@@ -50,7 +50,6 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                 let seralized = serde_json::to_string(&MessageType::TimedGameMove(game_move.clone())).unwrap();
                 sink.start_send(Message::from(seralized));
             }
-            _ => {}
         }
     }
 
@@ -97,7 +96,7 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                                 if let Some(game_executor_mtx) = games.get_mut(&game_metadata.game_id) { 
                                     let mut game_executor = game_executor_mtx.lock().unwrap();
                                     if let Some(player) = &self.player {
-                                        self.player = Some(game_executor.add_player(player.clone()).unwrap());
+                                        self.player = Some(game_executor.add_player(player.clone()).expect("Too many players"));
                                         let handler_sink = self.sink.clone();
                                         game_executor.event_source.on_event(Box::new(move |event: &GameEvent, game: &mut Game| {
                                             GameConnection::handle_game_event(handler_sink.clone(), game, event);
