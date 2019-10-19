@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState, MouseEvent } from 'react';
-import {gameConnectionSingleton} from "../connection/index";
+import { gameConnectionSingleton } from "../connection/index";
 
 interface Props {
     game: any
 }
 
-function GameWindow (props: Props) {
+function GameWindow(props: Props) {
     const canvasTop = useRef(null);
     const canvasBottom = useRef(null);
     const players = useState([]);
-    const [gameStarted,setGameStarted] = useState(false);
+    const [gameStarted, setGameStarted] = useState(false);
     const startGame = () => {
         gameConnectionSingleton.client.start_game();
     }
@@ -20,17 +20,28 @@ function GameWindow (props: Props) {
             .getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        gameConnectionSingleton.client.mouse_event(x,y);
+        gameConnectionSingleton.client.mouse_event(x, y);
     }
     useEffect(() => {
         gameConnectionSingleton.client.enter_game(props.game);
-        gameConnectionSingleton.client.set_render_target(canvasTop.current,canvasBottom.current);
+        gameConnectionSingleton.client.set_render_target(canvasTop.current, canvasBottom.current);
         // game is implictly started when the first GameState is sent
+        let renderStarted = false;
         gameConnectionSingleton.onEvent("Game", () => {
+            if(!renderStarted) {
+                const startTime = Date.now();
+                const render = () => {
+                    const time = ~~((Date.now() - startTime)/16);
+                    console.log(time);
+                    gameConnectionSingleton.client.render_game_frame(time);
+                    window.requestAnimationFrame(render);
+                };
+                window.requestAnimationFrame(render);
+                renderStarted = true;
+            }
             setGameStarted(true);
-            gameConnectionSingleton.client.render_game_frame(5000000);
         });
-    },[canvasTop,canvasBottom,props.game]);
+    }, [canvasTop, canvasBottom, props.game]);
     return (
         <div style={{
             "position": "relative"

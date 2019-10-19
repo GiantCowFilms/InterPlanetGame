@@ -99,15 +99,17 @@ impl GameClient {
         Ok(())
     }
 
-    pub fn render_game_frame(&mut self, time: u32) -> Result<(), JsValue> {
+    pub fn render_game_frame(&mut self, mut time: u32) -> Result<(), JsValue> {
         let game = self.current_game_state.as_ref().ok_or("No game state loaded.").map_err(|err| JsValue::from(err))?;
         if let Some(ref galaxy) = game.state {
+            // temprorary in lieu of proper sync
+            time = galaxy.time.max(time);
             if time < galaxy.time {
                 return Err(JsValue::from("Cannot render frames from the past."));
             };
         }
         if let Some(render) = &mut self.current_game_render {
-            render.render_galaxy(&game);
+            render.render_galaxy(&game)?;
         };
         Ok(())
     }
@@ -116,18 +118,18 @@ impl GameClient {
         let galaxy = self.current_game_state.as_ref().and_then(|game| { game.state.as_ref() }).ok_or("No game state loaded.").map_err(|err| JsValue::from(err))?;
         let mut selected_planet = None;
         for planet in &galaxy.planets {
-            if planet.radius.powf(2f32) < (planet.x as f32 - x).powf(2f32) + (planet.y as f32 - y).powf(2f32) {
+            if planet.radius.powf(2f32) > (planet.x as f32 - x).powf(2f32) + (planet.y as f32 - y).powf(2f32) {
                 selected_planet = Some(planet);
                 break;
             }
         };
-        println!("{}",selected_planet.is_none());
+        format!("{}",selected_planet.is_none());
         if let Some(selected_planet) = selected_planet {
-            if selected_planet.possession.map(|p| p != 0).unwrap_or(false) {
-                self.selected_planet = Some(selected_planet.clone());
-            } else if let Some(source_planet) = &self.selected_planet {
+            if let Some(source_planet) = &self.selected_planet {
                 self.make_move(&source_planet,selected_planet);
                 self.selected_planet = None;
+            } else if selected_planet.possession.map(|p| p == 1).unwrap_or(false) {
+                self.selected_planet = Some(selected_planet.clone());
             }
         }
         Ok(())
