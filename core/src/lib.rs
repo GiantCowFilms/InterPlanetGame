@@ -1,4 +1,5 @@
 #![feature(futures_api)]
+#![feature(vecdeque_rotate)]
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]

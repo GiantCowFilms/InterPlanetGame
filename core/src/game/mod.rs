@@ -89,9 +89,9 @@ pub struct GameExecutor {
     pub start_time: u128,
     pub game: Game,
     pub event_source: GameEventSource,
-    pub completed_move_idx: usize,
+    completed_move_idx: usize,
     // Alternative use VecDeque
-    pub modification_buckets: ModBuckets,
+    modification_buckets: ModBuckets,
 }
 
 pub enum GameEvent{
@@ -147,7 +147,7 @@ impl Move {
     }
 
     pub fn end_time(&self) -> u32 {
-        let dist = self.dist()  + self.from.radius - self.to.radius;
+        let dist = self.dist()  + self.from.radius + self.to.radius;
         (dist/SHIP_SPEED) as u32 + self.time
     }
 
@@ -167,6 +167,18 @@ impl GameExecutor {
             modification_buckets: VecDeque::new()
         }
     }
+    
+    /// Assumes that game is a later state of the current game.
+    pub fn set_game(&mut self, game: Game) {
+        if let Some(ref new_state) = game.state {
+            if let Some(ref old_state) = self.game.state {
+                if new_state.time <= old_state.time {
+                    panic!("Attempted to insert old game state.");
+                }
+            }
+        };
+        self.game = game;
+    } 
 
     pub fn add_player(&mut self, mut player: Player) -> Result<Player,String> {
         if self.game.map.planets[0].possession.len() > self.game.players.len() {
@@ -212,7 +224,12 @@ impl GameExecutor {
             // Time of arrival
             let arrival = (dist/SHIP_SPEED) as u32 + game_move.time;
             // Bucket index is offset from the oldest bucket
-            let first_bucket_time = mod_buckets.get(0).and_then(|o| o.as_ref()).map(|v|v.0).unwrap_or(first_time);
+            let mut first_bucket_time = mod_buckets.get(0).and_then(|o| o.as_ref()).map(|v|v.0).unwrap_or(first_time);
+            if first_bucket_time > first_time {
+                mod_buckets.resize(mod_buckets.len() + (first_bucket_time - first_time) as usize,None);
+                mod_buckets.rotate_right((first_bucket_time - first_time) as usize);
+                first_bucket_time = first_time;
+            };
             let bucket_idx = (arrival - first_bucket_time) as usize;
             let cap = ((arrival - first_bucket_time) as usize + 1).max(mod_buckets.len());
             mod_buckets.resize(cap,None);

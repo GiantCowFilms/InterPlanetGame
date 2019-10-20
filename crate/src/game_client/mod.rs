@@ -1,5 +1,5 @@
 use ipg_core::protocol::messages::{ MessageType , GameMetadata, GameList, GameState, SetName , GameMove};
-use ipg_core::game::{ Game, Planet };
+use ipg_core::game::{ Game, Planet, GameExecutor };
 use wasm_bindgen::prelude::*;
 use js_sys;
 use web_sys::{WebSocket, HtmlCanvasElement};
@@ -10,7 +10,7 @@ use self::game_render::GameRender;
 pub struct GameClient{
     game_list: Vec<GameMetadata>,
     // on_game_list: Vec<Box<Fn () -> () + 'static>>,
-    current_game_state: Option<Game>,
+    current_game_state: Option<GameExecutor>,
     current_game: Option<GameMetadata>,
     current_game_render: Option<GameRender>,
     selected_planet: Option<Planet>, //Todo maybe move this somewhere else?
@@ -48,13 +48,19 @@ impl GameClient {
             MessageType::GameState(GameState {
                 galaxy
             }) => {
-                if let Some(ref mut game) = self.current_game_state {
-                    game.state = Some(galaxy);
+                if let Some(ref mut exec) = self.current_game_state {
+                    // TODO move this into setter
+                    exec.game.state = Some(galaxy);
                 }
                 Some("GameState".to_string())
             },
             MessageType::Game(game) => {
-                self.current_game_state = Some(game);
+                match &mut self.current_game_state {
+                    Some(exec) => exec.set_game(game),
+                    None => { 
+                        self.current_game_state = Some(GameExecutor::from_game(game)) 
+                    }
+                };
                 Some("Game".to_string())
             }
             _ => None
@@ -100,22 +106,23 @@ impl GameClient {
     }
 
     pub fn render_game_frame(&mut self, mut time: u32) -> Result<(), JsValue> {
-        let game = self.current_game_state.as_ref().ok_or("No game state loaded.").map_err(|err| JsValue::from(err))?;
-        if let Some(ref galaxy) = game.state {
+        let exec = self.current_game_state.as_mut().ok_or("No game state loaded.").map_err(|err| JsValue::from(err))?;
+        if let Some(ref galaxy) = exec.game.state {
             // temprorary in lieu of proper sync
             time = galaxy.time.max(time);
             if time < galaxy.time {
                 return Err(JsValue::from("Cannot render frames from the past."));
             };
+            exec.step_to(time);
         }
         if let Some(render) = &mut self.current_game_render {
-            render.render_galaxy(&game)?;
+            render.render_galaxy(&exec.game)?;
         };
         Ok(())
     }
 
     pub fn mouse_event(&mut self, x: f32, y: f32) -> Result<(),JsValue> {
-        let galaxy = self.current_game_state.as_ref().and_then(|game| { game.state.as_ref() }).ok_or("No game state loaded.").map_err(|err| JsValue::from(err))?;
+        let galaxy = self.current_game_state.as_ref().and_then(|exec| { exec.game.state.as_ref() }).ok_or("No game state loaded.").map_err(|err| JsValue::from(err))?;
         let mut selected_planet = None;
         for planet in &galaxy.planets {
             if planet.radius.powf(2f32) > (planet.x as f32 - x).powf(2f32) + (planet.y as f32 - y).powf(2f32) {
