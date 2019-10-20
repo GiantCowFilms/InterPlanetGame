@@ -44,15 +44,22 @@ precision mediump float;
 
 layout (location = 0) in vec2 pos;
 layout (location = 1) in vec2 start_pos;
+out float arrived;
 uniform uint travel_time;
 uniform vec2 destination;
-
+uniform uint res_x;
+uniform uint res_y;
+uniform float from_radius;
+uniform float to_radius;
 void main()
 {
-    float dist = distance(start_pos,destination) * 1000.0;
-    float progress = (dist - (0.5 * float(travel_time))) / dist;
+    vec2 ratio = vec2(float(res_x),float(res_y));
+    float dist = distance(start_pos,destination);
+    float remaining_dist = dist - (0.5 * float(travel_time));
+    arrived = to_radius - remaining_dist;
+    float progress = remaining_dist / dist;
     vec2 travel = mix(destination, start_pos, progress);
-    gl_Position = vec4(pos + travel, 0.0, 1.0);
+    gl_Position = vec4(pos + (travel / ratio * 2.0 - 1.0), 0.0, 1.0);
     //gl_Position = vec4(pos, 1.0, 1.0);
 }  
 "#); 
@@ -63,10 +70,15 @@ precision mediump float;
 #endif
 
 layout(location = 0) out vec4 ship_color;
+in float arrived; // Is positive when ship has arrived.
 
 void main()
 {
-    ship_color = vec4(1.0,0.0,1.0,1.0);
+    if (arrived > 0.0) {
+        ship_color = vec4(0.0,0.0,0.0,0.0);
+    } else {
+        ship_color = vec4(0.0,0.0,0.0,1.0);
+    }
 }
 
 "#; 
@@ -188,8 +200,8 @@ impl GameRender {
             { 
                 let mut i = 0usize;
                 for (x,y) in game_move.start_positions() {
-                    positions[i] = x / (map.size.x as f32) * 2.0 - 1.0 ; i += 1;
-                    positions[i] = (y / (map.size.y as f32) * 2.0 - 1.0) * - 1.0; i += 1;
+                    positions[i] = x; i += 1;
+                    positions[i] = map.size.y as f32 - y; i += 1; //Flip y axis
                 }
             }
 
@@ -248,9 +260,29 @@ impl GameRender {
             };
             let destination_loc = self.gl.get_uniform_location(&program,"destination").ok_or("Unable to find uniform.")?;
             self.gl.uniform2fv_with_f32_array(Some(&destination_loc),vec![
-                game_move.to.x as f32 / (map.size.x as f32) * 2.0 - 1.0,
-                game_move.to.y as f32 / (map.size.y as f32) * 2.0 - 1.0,
+                game_move.to.x as f32,
+                (map.size.y as f32) - game_move.to.y as f32,
             ].as_slice());
+            if let Some(res_x) = self.gl.get_uniform_location(&program,"res_x") {
+                self.gl.uniform1ui(Some(&res_x),map.size.x);
+            } else {
+                log!("WARNING: Unable to find uniform res_x.");
+            };
+            if let Some(res_y) = self.gl.get_uniform_location(&program,"res_y") {
+                self.gl.uniform1ui(Some(&res_y),map.size.y);
+            } else {
+                log!("WARNING: Unable to find uniform res_y.");
+            };
+            if let Some(to_radius) = self.gl.get_uniform_location(&program,"to_radius") {
+                self.gl.uniform1f(Some(&to_radius),game_move.to.radius);
+            } else {
+                log!("WARNING: Unable to find uniform to_radius.");
+            };
+            if let Some(from_radius) = self.gl.get_uniform_location(&program,"from_radius") {
+                self.gl.uniform1f(Some(&from_radius),game_move.from.radius);
+            } else {
+                log!("WARNING: Unable to find uniform from_radius.");
+            };
 
             // Ship Verticies
             let ship_verts: Vec<f32> = vec![-0.25f32,-0.5,0.25,-0.5,0.0,0.5].iter().map(|f| f/80.0).collect();
