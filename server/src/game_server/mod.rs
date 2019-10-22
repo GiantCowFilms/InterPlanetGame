@@ -64,7 +64,7 @@ impl GameServer {
         };
 
         let listener = TcpListener::bind(&SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             port,
         ))
         .unwrap();
