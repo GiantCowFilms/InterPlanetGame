@@ -170,13 +170,14 @@ impl GameExecutor {
     
     /// Assumes that game is a later state of the current game.
     pub fn set_game(&mut self, game: Game) {
-        if let Some(ref new_state) = game.state {
-            if let Some(ref old_state) = self.game.state {
-                if new_state.time <= old_state.time {
-                    panic!("Attempted to insert old game state.");
-                }
-            }
-        };
+        // All processing state should now support old game state insertion.
+        // if let Some(ref new_state) = game.state {
+        //     if let Some(ref old_state) = self.game.state {
+        //         if new_state.time <= old_state.time {
+        //             panic!("Attempted to insert old game state.");
+        //         }
+        //     }
+        // };
         self.game = game;
     } 
 
@@ -211,25 +212,33 @@ impl GameExecutor {
     }
 
     #[inline(never)]
-    fn process_move(time: &mut u32, planets: &mut Vec<Planet>, mod_buckets: &mut ModBuckets, game_move: &Move) {
+    fn apply_move_from(time: &mut u32, planets: &mut Vec<Planet>, mod_buckets: &mut ModBuckets, game_move: &Move) {
         if  *time != game_move.time {
             panic!("Moves should only be processed on a game state that matches the move time.");
         }
+        planets[game_move.from.index].value -= game_move.armada_size as f32;
+    }
 
-        let armada = game_move.armada_size;
-        planets[game_move.from.index].value -= armada as f32;
+    #[inline(never)]
+    fn apply_move_mod_buckets(time: &mut u32, planets: &mut Vec<Planet>, mod_buckets: &mut ModBuckets, game_move: &Move) {
+        if  *time != game_move.time {
+            panic!("Moves should only be processed on a game state that matches the move time.");
+        }
         let first_time = game_move.first_arrival_time();
+        // Bucket index is offset from the oldest bucket
+        let mut first_bucket_time = mod_buckets.get(0).and_then(|o| o.as_ref()).map(|v|v.0).unwrap_or(first_time);
+        if first_bucket_time > first_time {
+            mod_buckets.resize(mod_buckets.len() + (first_bucket_time - first_time) as usize,None);
+            mod_buckets.rotate_right((first_bucket_time - first_time) as usize);
+            first_bucket_time = first_time;
+        };
         for ship_pos in game_move.start_positions() {
             let dist = ((ship_pos.0 - game_move.to.x as f32).powf(2.0) + (ship_pos.1 - game_move.to.y as f32).powf(2.0)).sqrt() - game_move.to.radius;
             // Time of arrival
             let arrival = (dist/SHIP_SPEED) as u32 + game_move.time;
-            // Bucket index is offset from the oldest bucket
-            let mut first_bucket_time = mod_buckets.get(0).and_then(|o| o.as_ref()).map(|v|v.0).unwrap_or(first_time);
-            if first_bucket_time > first_time {
-                mod_buckets.resize(mod_buckets.len() + (first_bucket_time - first_time) as usize,None);
-                mod_buckets.rotate_right((first_bucket_time - first_time) as usize);
-                first_bucket_time = first_time;
-            };
+            if first_bucket_time > arrival {
+                panic!("dist: {}, move.time: {}, first_time: {}, first_bucket_time: {}, arrival: {}, ship_pos.x: {}, ship_pos.y: {}",dist,game_move.time,first_time,first_bucket_time,arrival,ship_pos.0,ship_pos.1);
+            }
             let bucket_idx = (arrival - first_bucket_time) as usize;
             let cap = ((arrival - first_bucket_time) as usize + 1).max(mod_buckets.len());
             mod_buckets.resize(cap,None);
@@ -247,8 +256,19 @@ impl GameExecutor {
 
     fn apply_buckets(time: &mut u32, planets: &mut Vec<Planet>, mod_buckets: &mut ModBuckets, target_time: u32) {
         let mut prev_time = *time;
-        while !mod_buckets.is_empty() && mod_buckets[0].as_ref().map(|b| b.0 <= target_time).unwrap_or(true) {
+        // Add code to skip over mod buckets that are less than previous time.
+        // It was causing panics because of overflows.
+        // I don't thinka situation should be able to occur where this happens...
+        while !mod_buckets.is_empty() && mod_buckets[0]
+            //.iter()
+            //.find(|bucket| bucket.as_ref().map(|b| b.0 >= prev_time).unwrap_or(false))
+            //.and_then(std::option::Option::as_ref)
+            .as_ref()
+            .map(|b| b.0 <= target_time)
+            .unwrap_or(true) 
+        {
             if let Some(bucket) = mod_buckets.pop_front().and_then(std::convert::identity) {
+                println!("bucket.0: {}, prev_time: {}",bucket.0,prev_time);
                 GameExecutor::spawn_ships(planets,bucket.0 - prev_time);
                 prev_time = bucket.0;
                 for (i, planet) in planets.iter_mut().enumerate() {
@@ -264,14 +284,16 @@ impl GameExecutor {
             let prev_time = galaxy.time;
             println!("{}",galaxy.time);
             let new_moves = galaxy.moves.iter().skip(self.completed_move_idx).filter(|game_move| {
-                println!("result: {},prev_time: {}, target_time: {}, move.time: {}",game_move.time >= prev_time && game_move.time <= target_time, prev_time, target_time, game_move.time);
                 // >= in first condition might result in double processing moves
-                game_move.time >= prev_time && game_move.time <= target_time 
+                game_move.time <= target_time 
             });
             for game_move in new_moves {
                 GameExecutor::apply_buckets(&mut galaxy.time, &mut galaxy.planets,&mut self.modification_buckets, game_move.time);
                 galaxy.time = game_move.time;
-                GameExecutor::process_move(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);
+                // If the game state is > than the previous time
+                GameExecutor::apply_move_from(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);
+                GameExecutor::apply_move_mod_buckets(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);
+                self.completed_move_idx += 1;
             };
             if galaxy.time < target_time {
                 GameExecutor::apply_buckets(&mut galaxy.time, &mut galaxy.planets,&mut self.modification_buckets, target_time);
