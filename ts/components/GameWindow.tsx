@@ -31,7 +31,7 @@ function GameWindow(props: Props) {
             if(!renderStarted) {
                 const startTime = Date.now();
                 const render = () => {
-                    const time = ~~((Date.now() - startTime - 50)/17); // 50 milisecond delary
+                    const time = ~~((Date.now() - startTime - 50)/17); // 50 milisecond delay
                     if (time >= 0) {
                         console.log(time);
                         gameConnectionSingleton.client.render_game_frame(time);
