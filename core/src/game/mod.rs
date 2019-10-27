@@ -165,7 +165,9 @@ impl Move {
 
     pub fn first_arrival_time(&self) -> u32 {
         let dist = self.dist() - self.from.radius - self.to.radius;
-        (dist/SHIP_SPEED) as u32 + self.time
+        // If the planets are overlapping, the distance will be negative.
+        // This can result in an overflow therefore it is clamped to 0 avoid crashes.
+        (dist/SHIP_SPEED).max(0f32) as u32 + self.time
     }
 }
 
