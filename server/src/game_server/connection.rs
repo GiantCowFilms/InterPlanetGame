@@ -105,6 +105,10 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                                             game_id: game_metadata.game_id.clone()
                                         }));
                                         let _ = sink.start_send(Message::from(seralized.unwrap()));
+                                        if let Some(player) = &self.player {
+                                            let seralized = serde_json::to_string(&MessageType::Possession(player.index as u32));
+                                            let _ = sink.start_send(Message::from(seralized.unwrap()));
+                                        };
                                         if game_executor.game.state.is_some() {
                                             let seralized = serde_json::to_string(&MessageType::Game(game_executor.game.clone()));
                                             let _ = sink.start_send(Message::from(seralized.unwrap()));

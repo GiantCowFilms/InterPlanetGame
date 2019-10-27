@@ -55,6 +55,7 @@ pub struct PlayerMetadata {
 pub enum MessageType {
     SetName(SetName),
     EnterGame(GameMetadata),
+    Possession(u32),
     Game(Game),
     GameState(GameState),
     GameMove(GameMove),

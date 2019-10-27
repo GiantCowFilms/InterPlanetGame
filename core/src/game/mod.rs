@@ -299,7 +299,9 @@ impl GameExecutor {
             .unwrap_or(true) 
         {
             if let Some(bucket) = mod_buckets.pop_front().and_then(std::convert::identity) {
-                println!("bucket.time: {}, prev_time: {}",bucket.time,prev_time);
+                if bucket.time < prev_time {
+                    panic!("bucket.time: {}, prev_time: {}",bucket.time,prev_time);
+                }
                 GameExecutor::spawn_ships(planets,bucket.time - prev_time);
                 prev_time = bucket.time;
                 for (i, planet) in planets.iter_mut().enumerate() {
@@ -370,6 +372,8 @@ impl GameExecutor {
         let galaxy = self.game.state.as_mut().ok_or_else(|| "Game has not been started.".to_owned())?;
         if galaxy.planets[game_move.from.index].possession.map_or(false,|idx| player.index != idx) {
             Err("Planet not owned by player.".to_owned())
+        } else if game_move.from.index == game_move.to.index {
+            Err("Planet cannot move to itself.".to_owned())
         } else {
             GameExecutor::apply_move_from(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, &game_move);
             galaxy.moves.push(game_move.clone());

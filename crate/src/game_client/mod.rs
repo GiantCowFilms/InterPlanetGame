@@ -14,6 +14,7 @@ pub struct GameClient{
     current_game: Option<GameMetadata>,
     current_game_render: Option<GameRender>,
     selected_planet: Option<Planet>, //Todo maybe move this somewhere else?
+    current_posession_index: Option<u32>,
     socket: WebSocket
 }
 
@@ -26,6 +27,7 @@ impl GameClient {
             current_game_state: None,
             current_game_render: None,
             selected_planet: None,
+            current_posession_index: None,
             socket
             // on_game_list: Vec::new()
         }
@@ -53,6 +55,10 @@ impl GameClient {
                     exec.game.state = Some(galaxy);
                 }
                 Some("GameState".to_string())
+            },
+            MessageType::Possession(possession) => {
+                self.current_posession_index = Some(possession);
+                Some("Possesion".to_string())
             },
             MessageType::Game(game) => {
                 match &mut self.current_game_state {
@@ -141,7 +147,7 @@ impl GameClient {
             if let Some(source_planet) = &self.selected_planet {
                 self.make_move(&source_planet,selected_planet);
                 self.selected_planet = None;
-            } else if selected_planet.possession.map(|p| p == 1).unwrap_or(false) {
+            } else if selected_planet.possession.map(|p| Some(p as u32) == self.current_posession_index).unwrap_or(false) {
                 self.selected_planet = Some(selected_planet.clone());
             }
         }
