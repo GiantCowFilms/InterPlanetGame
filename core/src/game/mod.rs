@@ -141,7 +141,7 @@ impl Move {
 
     fn dist(&self) -> f32 {
         (
-            (self.from.x as f32 - self.to.y  as f32).powf(2.0) + 
+            (self.from.x as f32 - self.to.x  as f32).powf(2.0) + 
             (self.from.y  as f32 - self.to.y  as f32).powf(2.0)
         ).sqrt()
     }
