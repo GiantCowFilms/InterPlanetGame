@@ -83,7 +83,19 @@ impl Game {
     }
 }
 
-type ModBuckets = VecDeque<Option<(u32,Vec<u32>)>>;
+#[derive(Clone)]
+struct PlanetDelta {
+    magnitude: u32,
+    possession: u32
+}
+
+#[derive(Clone)]
+struct ModBucket {
+    pub time: u32,
+    pub deltas_by_planet: Vec<Vec<PlanetDelta>>,
+}
+
+type ModBuckets = VecDeque<Option<ModBucket>>;
 
 pub struct GameExecutor {
     pub start_time: u128,
@@ -226,7 +238,7 @@ impl GameExecutor {
         }
         let first_time = game_move.first_arrival_time();
         // Bucket index is offset from the oldest bucket
-        let mut first_bucket_time = mod_buckets.get(0).and_then(|o| o.as_ref()).map(|v|v.0).unwrap_or(first_time);
+        let mut first_bucket_time = mod_buckets.get(0).and_then(|o| o.as_ref()).map(|v|v.time).unwrap_or(first_time);
         if first_bucket_time > first_time {
             mod_buckets.resize(mod_buckets.len() + (first_bucket_time - first_time) as usize,None);
             mod_buckets.rotate_right((first_bucket_time - first_time) as usize);
@@ -242,14 +254,31 @@ impl GameExecutor {
             let bucket_idx = (arrival - first_bucket_time) as usize;
             let cap = ((arrival - first_bucket_time) as usize + 1).max(mod_buckets.len());
             mod_buckets.resize(cap,None);
+            let attacker_player_index = game_move.from.possession.expect("neutral player cannot make moves.") as u32;
             if let Some(ref mut bucket) = mod_buckets[bucket_idx]  {
-                bucket.1[game_move.to.index] += 1;
+                match bucket.deltas_by_planet[game_move.to.index].iter_mut()
+                    .find(|delta| delta.possession == attacker_player_index) {
+                    Some(delta) => delta,
+                    None => {
+                        bucket.deltas_by_planet[game_move.to.index].push(PlanetDelta {
+                            possession: attacker_player_index,
+                            magnitude: 0 
+                        });
+                        bucket.deltas_by_planet[game_move.to.index].last_mut().unwrap()
+                    }
+                }.magnitude += 1;
             } else {
-                mod_buckets[bucket_idx] = Some((arrival,{ 
-                    let mut vec = vec![0; planets.len()];
-                    vec[game_move.to.index] += 1;
-                    vec
-                }));
+                mod_buckets[bucket_idx] = Some(ModBucket {
+                    time: arrival,
+                    deltas_by_planet: { 
+                        let mut vec = vec![Vec::new(); planets.len()];
+                        vec[game_move.to.index].push(PlanetDelta {
+                            possession: attacker_player_index,
+                            magnitude: 1
+                        });
+                        vec
+                    }
+                });
             };
         }
     }
@@ -264,15 +293,21 @@ impl GameExecutor {
             //.find(|bucket| bucket.as_ref().map(|b| b.0 >= prev_time).unwrap_or(false))
             //.and_then(std::option::Option::as_ref)
             .as_ref()
-            .map(|b| b.0 <= target_time)
+            .map(|b| b.time <= target_time)
             .unwrap_or(true) 
         {
             if let Some(bucket) = mod_buckets.pop_front().and_then(std::convert::identity) {
-                println!("bucket.0: {}, prev_time: {}",bucket.0,prev_time);
-                GameExecutor::spawn_ships(planets,bucket.0 - prev_time);
-                prev_time = bucket.0;
+                println!("bucket.time: {}, prev_time: {}",bucket.time,prev_time);
+                GameExecutor::spawn_ships(planets,bucket.time - prev_time);
+                prev_time = bucket.time;
                 for (i, planet) in planets.iter_mut().enumerate() {
-                    planet.value -= bucket.1[i] as f32;
+                    for attacker in &bucket.deltas_by_planet[i] {
+                        if Some(attacker.possession as usize) != planet.possession {
+                            planet.value -= attacker.magnitude as f32;
+                        } else {
+                            planet.value += attacker.magnitude as f32;
+                        }
+                    }
                 }
             }
         };
@@ -290,8 +325,9 @@ impl GameExecutor {
             for game_move in new_moves {
                 GameExecutor::apply_buckets(&mut galaxy.time, &mut galaxy.planets,&mut self.modification_buckets, game_move.time);
                 galaxy.time = game_move.time;
-                // If the game state is > than the previous time
-                GameExecutor::apply_move_from(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);
+                if prev_time < galaxy.time {
+                    GameExecutor::apply_move_from(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);
+                }
                 GameExecutor::apply_move_mod_buckets(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);
                 self.completed_move_idx += 1;
             };
@@ -324,6 +360,7 @@ impl GameExecutor {
         if galaxy.planets[game_move.from.index].possession.map_or(false,|idx| player.index != idx) {
             Err("Planet not owned by player.".to_owned())
         } else {
+            GameExecutor::apply_move_from(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, &game_move);
             galaxy.moves.push(game_move.clone());
             self.event_source.emit_event(GameEvent::Move(game_move), &mut self.game);
             Ok(())
