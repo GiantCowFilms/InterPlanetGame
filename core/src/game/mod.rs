@@ -304,12 +304,19 @@ impl GameExecutor {
                     for attacker in &bucket.deltas_by_planet[i] {
                         if Some(attacker.possession as usize) != planet.possession {
                             planet.value -= attacker.magnitude as f32;
+                            if planet.value < 0.0 {
+                                planet.possession = Some(attacker.possession as usize);
+                                planet.value = planet.value.abs();
+                            }
                         } else {
                             planet.value += attacker.magnitude as f32;
                         }
                     }
                 }
             }
+        };
+        if target_time < prev_time {
+            panic!("target: {}, prev: {}",target_time,prev_time);
         };
         GameExecutor::spawn_ships(planets,target_time - prev_time);
     }
@@ -323,7 +330,9 @@ impl GameExecutor {
                 game_move.time <= target_time 
             });
             for game_move in new_moves {
-                GameExecutor::apply_buckets(&mut galaxy.time, &mut galaxy.planets,&mut self.modification_buckets, game_move.time);
+                if game_move.time >= galaxy.time {
+                    GameExecutor::apply_buckets(&mut galaxy.time, &mut galaxy.planets,&mut self.modification_buckets, game_move.time);
+                }
                 galaxy.time = game_move.time;
                 if prev_time < galaxy.time {
                     GameExecutor::apply_move_from(&mut galaxy.time,&mut galaxy.planets,&mut self.modification_buckets, game_move);

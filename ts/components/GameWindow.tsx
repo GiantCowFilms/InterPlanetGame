@@ -30,8 +30,9 @@ function GameWindow(props: Props) {
         gameConnectionSingleton.onEvent("Game", () => {
             if(!renderStarted) {
                 const startTime = Date.now();
+                const gameTime = gameConnectionSingleton.client.get_time(); // Warning: nullable
                 const render = () => {
-                    const time = ~~((Date.now() - startTime - 50)/17); // 50 milisecond delay
+                    const time = Math.max(~~((Date.now() - startTime - 50)/17) + gameTime, gameTime); // 50 milisecond delay
                     if (time >= 0) {
                         console.log(time);
                         gameConnectionSingleton.client.render_game_frame(time);

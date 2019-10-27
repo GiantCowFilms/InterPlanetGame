@@ -86,6 +86,12 @@ impl GameClient {
         self.socket.send_with_str(message.as_str());
     }
 
+    pub fn get_time(&self) -> Option<u32> {
+        self.current_game_state.as_ref().and_then(|state| {
+            state.game.state.as_ref().map(|s| s.time)
+        })
+    }
+
     pub fn enter_game(&self,game_metadata: JsValue) {
         if let Ok(game_metadata) = game_metadata.into_serde() as Result<GameMetadata,serde_json::Error>  {
             let message = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
