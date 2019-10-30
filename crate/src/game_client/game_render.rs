@@ -12,9 +12,12 @@ macro_rules! log {
 
 macro_rules! check_webgl {
     ($t:expr) => {
-        if $t.get_error() != 0 {
-            return Err(format!("WebGL Operation failed {}",$t.get_error()));
-        };
+        #[cfg(feature = "webgl_errors")]
+        {
+            if $t.get_error() != 0 {
+                return Err(format!("WebGL Operation failed {}",$t.get_error()));
+            };
+        }
     };
 }
 
