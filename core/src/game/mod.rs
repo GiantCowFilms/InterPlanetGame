@@ -287,21 +287,17 @@ impl GameExecutor {
 
     fn apply_buckets(time: &mut u32, planets: &mut Vec<Planet>, mod_buckets: &mut ModBuckets, target_time: u32) {
         let mut prev_time = *time;
-        // Add code to skip over mod buckets that are less than previous time.
-        // It was causing panics because of overflows.
-        // I don't thinka situation should be able to occur where this happens...
+        // Remove buckets that have already been accounted for by the current state.
+        while mod_buckets.get(0).and_then(|o| o.as_ref()).map(|b| b.time <= prev_time).unwrap_or(false)  {
+            mod_buckets.pop_front();
+        }
         while !mod_buckets.is_empty() && mod_buckets[0]
-            //.iter()
-            //.find(|bucket| bucket.as_ref().map(|b| b.0 >= prev_time).unwrap_or(false))
-            //.and_then(std::option::Option::as_ref)
             .as_ref()
             .map(|b| b.time <= target_time)
             .unwrap_or(true) 
         {
             if let Some(bucket) = mod_buckets.pop_front().and_then(std::convert::identity) {
-                if bucket.time < prev_time {
-                    panic!("bucket.time: {}, prev_time: {}",bucket.time,prev_time);
-                }
+                assert!(!(bucket.time < prev_time),"Late bucket application occured: bucket.time: {}, prev_time: {} target_time: {}",bucket.time,prev_time,target_time);
                 GameExecutor::spawn_ships(planets,bucket.time - prev_time);
                 prev_time = bucket.time;
                 for (i, planet) in planets.iter_mut().enumerate() {
@@ -327,6 +323,12 @@ impl GameExecutor {
 
     pub fn step_to(&mut self, target_time: u32) {
         if let Some(ref mut galaxy) = self.game.state {
+            assert!(
+                !(galaxy.time > target_time),
+                "Cannot step into the past! Target time: {} is behind galaxy time: {}",
+                galaxy.time,
+                target_time
+            );
             let prev_time = galaxy.time;
             println!("{}",galaxy.time);
             let new_moves = galaxy.moves.iter().skip(self.completed_move_idx).filter(|game_move| {
