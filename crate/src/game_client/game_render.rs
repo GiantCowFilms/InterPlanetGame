@@ -24,6 +24,7 @@ macro_rules! check_webgl {
 pub struct GameRender {
     canvases: [HtmlCanvasElement;2],
     gl: WebGl2RenderingContext,
+    ship_shader: WebGlProgram,
     context_2d: CanvasRenderingContext2d,
 }
 
@@ -136,6 +137,13 @@ pub fn link_program(
     }
 }
 
+pub fn create_ship_shader(gl_context: &WebGl2RenderingContext) -> Result<WebGlProgram,JsValue> {
+    let vertex_shader = compile_shader(gl_context,WebGl2RenderingContext::VERTEX_SHADER,SHIP_VERTEX)?;
+    let fragment_shader = compile_shader(gl_context,WebGl2RenderingContext::FRAGMENT_SHADER,SHIP_FRAGMENT)?;
+    let program = link_program(gl_context,&vertex_shader,&fragment_shader)?;
+    Ok(program)
+}
+
 impl GameRender {
     pub fn new(canvas_top: HtmlCanvasElement,canvas_bottom: HtmlCanvasElement) -> Result<Self, JsValue> {
         let gl_context = canvas_top
@@ -147,10 +155,12 @@ impl GameRender {
         .get_context("2d")?
         .expect("Unwrap 2d context")
         .dyn_into::<CanvasRenderingContext2d>()?;
+        let ship_shader = create_ship_shader(&gl_context)?;
 
         Ok(Self {
             canvases: [canvas_top,canvas_bottom],
             gl: gl_context,
+            ship_shader,
             context_2d
         })
     }
@@ -190,10 +200,10 @@ impl GameRender {
         self.gl.viewport(0,0,self.canvases[0].width() as i32,self.canvases[0].height() as i32);
 
         //Shader Setup
-        let vertex_shader = compile_shader(&self.gl,WebGl2RenderingContext::VERTEX_SHADER,SHIP_VERTEX)?;
-        let fragment_shader = compile_shader(&self.gl,WebGl2RenderingContext::FRAGMENT_SHADER,SHIP_FRAGMENT)?;
-        let program = link_program(&self.gl,&vertex_shader,&fragment_shader)?;
-        self.gl.use_program(Some(&program));
+        // let vertex_shader = compile_shader(&self.gl,WebGl2RenderingContext::VERTEX_SHADER,SHIP_VERTEX)?;
+        // let fragment_shader = compile_shader(&self.gl,WebGl2RenderingContext::FRAGMENT_SHADER,SHIP_FRAGMENT)?;
+        // let program = link_program(&self.gl,&vertex_shader,&fragment_shader)?;
+        self.gl.use_program(Some(&self.ship_shader));
         check_webgl!(self.gl);
 
         for game_move in (&galaxy.moves).iter().filter(|game_move| game_move.end_time() > galaxy.time) {
@@ -255,33 +265,33 @@ impl GameRender {
             //
 
             // Uniforms
-            if let Some(travel_time_loc) = self.gl.get_uniform_location(&program,"travel_time") {
+            if let Some(travel_time_loc) = self.gl.get_uniform_location(&self.ship_shader,"travel_time") {
                 self.gl.uniform1ui(Some(&travel_time_loc),galaxy.time - game_move.time);
                 log!("Travel time: {}", galaxy.time - game_move.time)
             } else {
                 log!("WARNING: Unable to find uniform travel_time.");
             };
-            let destination_loc = self.gl.get_uniform_location(&program,"destination").ok_or("Unable to find uniform.")?;
+            let destination_loc = self.gl.get_uniform_location(&self.ship_shader,"destination").ok_or("Unable to find uniform.")?;
             self.gl.uniform2fv_with_f32_array(Some(&destination_loc),vec![
                 game_move.to.x as f32,
                 (map.size.y as f32) - game_move.to.y as f32,
             ].as_slice());
-            if let Some(res_x) = self.gl.get_uniform_location(&program,"res_x") {
+            if let Some(res_x) = self.gl.get_uniform_location(&self.ship_shader,"res_x") {
                 self.gl.uniform1ui(Some(&res_x),map.size.x);
             } else {
                 log!("WARNING: Unable to find uniform res_x.");
             };
-            if let Some(res_y) = self.gl.get_uniform_location(&program,"res_y") {
+            if let Some(res_y) = self.gl.get_uniform_location(&self.ship_shader,"res_y") {
                 self.gl.uniform1ui(Some(&res_y),map.size.y);
             } else {
                 log!("WARNING: Unable to find uniform res_y.");
             };
-            if let Some(to_radius) = self.gl.get_uniform_location(&program,"to_radius") {
+            if let Some(to_radius) = self.gl.get_uniform_location(&self.ship_shader,"to_radius") {
                 self.gl.uniform1f(Some(&to_radius),game_move.to.radius);
             } else {
                 log!("WARNING: Unable to find uniform to_radius.");
             };
-            if let Some(from_radius) = self.gl.get_uniform_location(&program,"from_radius") {
+            if let Some(from_radius) = self.gl.get_uniform_location(&self.ship_shader,"from_radius") {
                 self.gl.uniform1f(Some(&from_radius),game_move.from.radius);
             } else {
                 log!("WARNING: Unable to find uniform from_radius.");
