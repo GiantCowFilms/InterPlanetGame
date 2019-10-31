@@ -288,7 +288,9 @@ impl GameExecutor {
     fn apply_buckets(time: &mut u32, planets: &mut Vec<Planet>, mod_buckets: &mut ModBuckets, target_time: u32) {
         let mut prev_time = *time;
         // Remove buckets that have already been accounted for by the current state.
-        while mod_buckets.get(0).and_then(|o| o.as_ref()).map(|b| b.time <= prev_time).unwrap_or(false)  {
+        while mod_buckets.get(0).map(|b| { 
+            b.as_ref().map(|b| b.time <= prev_time).unwrap_or(true)
+        }).unwrap_or(false) {
             mod_buckets.pop_front();
         }
         while !mod_buckets.is_empty() && mod_buckets[0]

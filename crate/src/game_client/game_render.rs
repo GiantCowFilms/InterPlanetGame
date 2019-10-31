@@ -3,6 +3,7 @@ use wasm_bindgen::{ JsCast, JsValue };
 use ipg_core::game::{ Galaxy, Game, Move, map::Map, SHIP_SPEED };
 use std::f64::consts::PI;
 use web_sys::console;
+use std::rc::Rc;
 
 macro_rules! log {
     ( $( $t:tt )* ) => {
@@ -16,16 +17,18 @@ macro_rules! check_webgl {
         {
             if $t.get_error() != 0 {
                 return Err(format!("WebGL Operation failed {}",$t.get_error()));
-            };
+            }
         }
     };
 }
 
 pub struct GameRender {
     canvases: [HtmlCanvasElement;2],
-    gl: WebGl2RenderingContext,
+    gl: Rc<WebGl2RenderingContext>,
     ship_shader: WebGlProgram,
     context_2d: CanvasRenderingContext2d,
+    completed_move_index: usize,
+    move_renders: Vec<MoveRender>
 }
 
 static PLAYER_COLORS: [&str;9] = [
@@ -159,9 +162,11 @@ impl GameRender {
 
         Ok(Self {
             canvases: [canvas_top,canvas_bottom],
-            gl: gl_context,
+            gl: Rc::new(gl_context),
             ship_shader,
-            context_2d
+            context_2d,
+            completed_move_index: 0,
+            move_renders: Vec::new()
         })
     }
 
@@ -206,64 +211,16 @@ impl GameRender {
         self.gl.use_program(Some(&self.ship_shader));
         check_webgl!(self.gl);
 
-        for game_move in (&galaxy.moves).iter().filter(|game_move| game_move.end_time() > galaxy.time) {
-            log!("Processing move!");
-            let ship_count = game_move.armada_size;
-            let mut positions = vec![0f32; ship_count as usize * 2];
-            { 
-                let mut i = 0usize;
-                for (x,y) in game_move.start_positions() {
-                    positions[i] = x; i += 1;
-                    positions[i] = map.size.y as f32 - y; i += 1; //Flip y axis
-                }
-            }
-
-            //VAO
-            let vao = self.gl.create_vertex_array().ok_or("Could not vertex array")?;
-            check_webgl!(self.gl);
-
-            self.gl.bind_vertex_array(Some(&vao));
-            check_webgl!(self.gl);
-
-            let ship_positions_vbo = self.gl.create_buffer().ok_or("Could not create buffer")?;
-            self.gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&ship_positions_vbo));
-            unsafe {
-                self.gl.buffer_data_with_u8_array(WebGl2RenderingContext::ARRAY_BUFFER, std::slice::from_raw_parts(positions.as_ptr() as *const u8, positions.len() * 4), WebGl2RenderingContext::STATIC_DRAW);
-            }
-            self.gl.vertex_attrib_pointer_with_i32(SHIP_START_POS,2,WebGl2RenderingContext::FLOAT, false, 0, 0);
-            check_webgl!(self.gl);
-            self.gl.enable_vertex_attrib_array(SHIP_START_POS);
-            check_webgl!(self.gl);
-            self.gl.vertex_attrib_divisor(SHIP_START_POS,1);
-            check_webgl!(self.gl);
-            //self.gl.bind_attrib_location(&program,SHIP_START_POS,"start_pos");
-            //check_webgl!(self.gl);
-
-            //Start Times
-                // //Start Times
-                // let mut start_times = vec![0u16; ship_count as usize];
-                // for game_move in (&galaxy.moves).iter().filter(|game_move| game_move.end_time() < galaxy.time) {
-                //     for i in 0..(game_move.armada_size as usize) {
-                //         start_times[i] = game_move.time as u16;
-                //     }
-                // }
-
-                // let start_times_vbo = self.gl.create_buffer();
-                // check_webgl!(self.gl);
-                // self.gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,start_times_vbo.as_ref());
-                // check_webgl!(self.gl);
-                // unsafe {
-                //     self.gl.buffer_data_with_u8_array(WebGl2RenderingContext::ARRAY_BUFFER, std::slice::from_raw_parts(start_times.as_ptr() as *const u8, start_times.len() * 2), WebGl2RenderingContext::STATIC_DRAW);
-                //     check_webgl!(self.gl);
-                // }
-                // self.gl.enable_vertex_attrib_array(SHIP_START_TIME);
-                // check_webgl!(self.gl);
-                // self.gl.vertex_attrib_pointer_with_i32(SHIP_START_TIME,2,WebGl2RenderingContext::UNSIGNED_SHORT, false, 0, 0);
-                // check_webgl!(self.gl);
-                // self.gl.bind_attrib_location(&program,SHIP_START_TIME,"start_time");
-                // check_webgl!(self.gl);
-            //
-
+        for game_move in (&galaxy.moves).iter().skip(self.completed_move_index).filter(|game_move| game_move.end_time() > galaxy.time) {
+            self.move_renders.push(MoveRender::new(game_move.clone(),self.gl.clone(),map)?);
+            self.completed_move_index += 1;
+        };
+        self.move_renders.retain(|move_render| {
+            move_render.game_move.end_time() > galaxy.time
+        });
+        log!("{}",self.move_renders.len());
+        for move_render in self.move_renders.iter_mut() {
+            let game_move = &move_render.game_move;
             // Uniforms
             if let Some(travel_time_loc) = self.gl.get_uniform_location(&self.ship_shader,"travel_time") {
                 self.gl.uniform1ui(Some(&travel_time_loc),galaxy.time - game_move.time);
@@ -297,36 +254,7 @@ impl GameRender {
                 log!("WARNING: Unable to find uniform from_radius.");
             };
 
-            // Ship Verticies
-            let ship_verts: Vec<f32> = vec![-0.25f32,-0.5,0.25,-0.5,0.0,0.5].iter().map(|f| f/80.0).collect();
-            let ship_verts_vbo = self.gl.create_buffer().ok_or("Could not create buffer")?;
-            self.gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&ship_verts_vbo));
-            check_webgl!(self.gl);
-            unsafe {
-                self.gl.buffer_data_with_u8_array(
-                    WebGl2RenderingContext::ARRAY_BUFFER, 
-                    std::slice::from_raw_parts(ship_verts.as_ptr() as *const u8, ship_verts.len() * 4),
-                    WebGl2RenderingContext::STATIC_DRAW);
-                check_webgl!(self.gl);
-            }
-
-            self.gl.enable_vertex_attrib_array(SHIP_VERTS);
-            check_webgl!(self.gl);
-
-            self.gl.vertex_attrib_pointer_with_i32(SHIP_VERTS,2,WebGl2RenderingContext::FLOAT, false, 0, 0);
-            check_webgl!(self.gl);
-
-
-            self.gl.draw_arrays_instanced(WebGl2RenderingContext::TRIANGLES,0,3,ship_count as i32);
-            //log!("ship_count: {}, start_times: {:?}, positions: {:?}", ship_count, start_times, positions);
-            check_webgl!(self.gl);
-
-            //Cleanup
-            self.gl.delete_buffer(Some(&ship_positions_vbo));
-            //self.gl.delete_buffer(start_times_vbo.as_ref());
-            self.gl.delete_buffer(Some(&ship_verts_vbo));
-            self.gl.delete_vertex_array(Some(&vao));
-
+            move_render.render(galaxy)?;
 
         };
         Ok(())
@@ -337,3 +265,93 @@ static SHIP_START_POS: u32 = 1;
 static SHIP_START_TIME: u32 = 2;
 static SHIP_TRAVEL_TIME: u32 = 2;
 static SHIP_VERTS: u32 = 0;
+
+pub struct MoveRender {
+    game_move: Move,
+    gl: Rc<WebGl2RenderingContext>,
+    positions_vbo: web_sys::WebGlBuffer,
+    verts_vbo: web_sys::WebGlBuffer,
+    verts_vao: web_sys::WebGlVertexArrayObject,
+}
+
+impl MoveRender {
+    pub fn new(game_move: Move, gl_ctx: Rc<WebGl2RenderingContext>, map: &Map) -> Result<MoveRender,String> {
+        let ship_count = game_move.armada_size;
+        let mut positions = vec![0f32; ship_count as usize * 2];
+        { 
+            let mut i = 0usize;
+            for (x,y) in game_move.start_positions() {
+                positions[i] = x; i += 1;
+                positions[i] = map.size.y as f32 - y; i += 1; //Flip y axis
+            }
+        }
+
+        //VAO
+        let vao = gl_ctx.create_vertex_array().ok_or("Could not vertex array")?;
+        check_webgl!(gl_ctx);
+
+        gl_ctx.bind_vertex_array(Some(&vao));
+        check_webgl!(gl_ctx);
+
+        //Ship Positions
+        let ship_positions_vbo = gl_ctx.create_buffer().ok_or("Could not create buffer")?;
+        gl_ctx.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&ship_positions_vbo));
+        unsafe {
+            gl_ctx.buffer_data_with_u8_array(WebGl2RenderingContext::ARRAY_BUFFER, std::slice::from_raw_parts(positions.as_ptr() as *const u8, positions.len() * 4), WebGl2RenderingContext::STATIC_DRAW);
+        };
+
+        // Ship Verticies
+        let ship_verts: Vec<f32> = vec![-0.25f32,-0.5,0.25,-0.5,0.0,0.5].iter().map(|f| f/80.0).collect();
+        let ship_verts_vbo = gl_ctx.create_buffer().ok_or("Could not create buffer")?;
+        gl_ctx.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&ship_verts_vbo));
+        check_webgl!(gl_ctx);
+        unsafe {
+            gl_ctx.buffer_data_with_u8_array(
+                WebGl2RenderingContext::ARRAY_BUFFER, 
+                std::slice::from_raw_parts(ship_verts.as_ptr() as *const u8, ship_verts.len() * 4),
+                WebGl2RenderingContext::STATIC_DRAW);
+            check_webgl!(gl_ctx);
+        }
+
+        Ok(MoveRender {
+            game_move,
+            gl: gl_ctx,
+            positions_vbo: ship_positions_vbo,
+            verts_vbo: ship_verts_vbo,
+            verts_vao: vao
+        })
+    }
+
+    pub fn render(&self, galaxy: &Galaxy) -> Result<(),String> {
+        self.gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&self.positions_vbo));
+        self.gl.vertex_attrib_pointer_with_i32(SHIP_START_POS,2,WebGl2RenderingContext::FLOAT, false, 0, 0);
+        check_webgl!(self.gl);
+        self.gl.enable_vertex_attrib_array(SHIP_START_POS);
+        check_webgl!(self.gl);
+        self.gl.vertex_attrib_divisor(SHIP_START_POS,1);
+        check_webgl!(self.gl);
+
+        self.gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&self.verts_vbo));
+
+        self.gl.enable_vertex_attrib_array(SHIP_VERTS);
+        check_webgl!(self.gl);
+
+        self.gl.vertex_attrib_pointer_with_i32(SHIP_VERTS,2,WebGl2RenderingContext::FLOAT, false, 0, 0);
+        check_webgl!(self.gl);
+
+        self.gl.draw_arrays_instanced(WebGl2RenderingContext::TRIANGLES,0,3,self.game_move.armada_size as i32);
+        //log!("ship_count: {}, start_times: {:?}, positions: {:?}", ship_count, start_times, positions);
+        check_webgl!(self.gl);
+        Ok(())
+    }
+}
+
+impl Drop for MoveRender {
+    fn drop(&mut self) {
+        //Cleanup
+            self.gl.delete_buffer(Some(&self.positions_vbo));
+            //self.gl.delete_buffer(start_times_vbo.as_ref());
+            self.gl.delete_buffer(Some(&self.verts_vbo));
+            self.gl.delete_vertex_array(Some(&self.verts_vao));
+    } 
+}
