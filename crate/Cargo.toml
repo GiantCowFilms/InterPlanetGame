@@ -56,4 +56,5 @@ features = [
 ]
 
 [features]
+webgl_errors = []
 default = ["console_error_panic_hook"]
