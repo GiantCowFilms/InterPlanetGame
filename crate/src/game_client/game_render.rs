@@ -60,13 +60,19 @@ uniform float from_radius;
 uniform float to_radius;
 void main()
 {
+    vec2 dir_norm = normalize(destination - start_pos);
+    mat2 transform = mat2(
+        dir_norm.y, dir_norm.x,
+        -1.0 * dir_norm.x, dir_norm.y
+    );
+
     vec2 ratio = vec2(float(res_x),float(res_y));
     float dist = distance(start_pos,destination);
     float remaining_dist = dist - (0.5 * float(travel_time));
     arrived = to_radius - remaining_dist;
     float progress = remaining_dist / dist;
     vec2 travel = mix(destination, start_pos, progress);
-    gl_Position = vec4(pos + (travel / ratio * 2.0 - 1.0), 0.0, 1.0);
+    gl_Position = vec4(pos * transform + (travel / ratio * 2.0 - 1.0), 0.0, 1.0);
     //gl_Position = vec4(pos, 1.0, 1.0);
 }  
 "#); 
