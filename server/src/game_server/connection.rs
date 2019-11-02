@@ -1,37 +1,39 @@
-use ipg_core::protocol::messages::{ MessageType, GameMetadata, GameState};
-use ipg_core::protocol::messages;
-use crate::GameServer;
-use ipg_core::game;
-use ipg_core::game::{ Player, Game, GameExecutor, GameEvent};
 use crate::game_server::GameList;
-use std::sync::{ Arc, Mutex };
+use crate::GameServer;
 use futures::sink::Sink;
 use futures::sync::mpsc::SendError;
-use tokio_tungstenite::tungstenite::{Error, Message};
+use ipg_core::game;
+use ipg_core::game::{Game, GameEvent, GameExecutor, Player};
+use ipg_core::protocol::messages;
+use ipg_core::protocol::messages::{GameMetadata, GameState, MessageType};
 use std::future::Future;
+use std::sync::{Arc, Mutex};
+use tokio_tungstenite::tungstenite::{Error, Message};
 
 pub trait Captures<'a> {}
 
 impl<'a, T> Captures<'a> for T {}
 
-pub struct GameConnection<S> 
-where S: Sink<SinkItem = Message, SinkError = Error> + Send
+pub struct GameConnection<S>
+where
+    S: Sink<SinkItem = Message, SinkError = Error> + Send,
 {
     player: Option<Player>,
     current_game: Option<Arc<Mutex<GameExecutor>>>,
     sink: Arc<Mutex<S>>,
-    instance: Arc<GameServer>
+    instance: Arc<GameServer>,
 }
 
-impl<S> GameConnection<S> 
-where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
+impl<S> GameConnection<S>
+where
+    S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static,
 {
     pub fn new(instance: Arc<GameServer>, sink: S) -> Self {
         GameConnection {
             player: None,
             current_game: None,
             sink: Arc::new(Mutex::new(sink)),
-            instance
+            instance,
         }
     }
 
@@ -45,9 +47,10 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                 sink.start_send(Message::from(seralized));
                 let seralized = serde_json::to_string(&MessageType::Game(game.clone()));
                 let _ = sink.start_send(Message::from(seralized.unwrap()));
-            },
+            }
             Move(game_move) => {
-                let seralized = serde_json::to_string(&MessageType::TimedGameMove(game_move.clone())).unwrap();
+                let seralized =
+                    serde_json::to_string(&MessageType::TimedGameMove(game_move.clone())).unwrap();
                 sink.start_send(Message::from(seralized));
             }
         }
@@ -84,69 +87,103 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                                 }
                                 Err(_poisoned) => Err("The game state is corrupted by a poisoned mutex. Please report this bug.".to_string())
                             }
-                        },
+                        }
                         MessageType::ExitGame => {
-                                                        let mut sink = self.sink.lock().unwrap();
+                            let mut sink = self.sink.lock().unwrap();
                             let _ = sink.start_send(Message::from("ExitGame"));
                             Ok(())
-                        },
+                        }
                         MessageType::EnterGame(game_metadata) => {
-                                                        let mut sink = self.sink.lock().unwrap();
+                            let mut sink = self.sink.lock().unwrap();
                             if let Ok(mut games) = self.instance.games.write() {
-                                if let Some(game_executor_mtx) = games.get_mut(&game_metadata.game_id) { 
+                                if let Some(game_executor_mtx) =
+                                    games.get_mut(&game_metadata.game_id)
+                                {
                                     let mut game_executor = game_executor_mtx.lock().unwrap();
                                     if let Some(player) = &self.player {
-                                        self.player = Some(game_executor.add_player(player.clone()).expect("Too many players"));
+                                        self.player = Some(
+                                            game_executor
+                                                .add_player(player.clone())
+                                                .expect("Too many players"),
+                                        );
                                         let handler_sink = self.sink.clone();
-                                        game_executor.event_source.on_event(Box::new(move |event: &GameEvent, game: &mut Game| {
-                                            GameConnection::handle_game_event(handler_sink.clone(), game, event);
-                                        }));                
-                                        let seralized = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
-                                            game_id: game_metadata.game_id.clone()
-                                        }));
+                                        game_executor.event_source.on_event(Box::new(
+                                            move |event: &GameEvent, game: &mut Game| {
+                                                GameConnection::handle_game_event(
+                                                    handler_sink.clone(),
+                                                    game,
+                                                    event,
+                                                );
+                                            },
+                                        ));
+                                        let seralized = serde_json::to_string(
+                                            &MessageType::EnterGame(GameMetadata {
+                                                game_id: game_metadata.game_id.clone(),
+                                            }),
+                                        );
                                         let _ = sink.start_send(Message::from(seralized.unwrap()));
                                         if let Some(player) = &self.player {
-                                            let seralized = serde_json::to_string(&MessageType::Possession(player.index as u32));
-                                            let _ = sink.start_send(Message::from(seralized.unwrap()));
+                                            let seralized = serde_json::to_string(
+                                                &MessageType::Possession(player.index as u32),
+                                            );
+                                            let _ =
+                                                sink.start_send(Message::from(seralized.unwrap()));
                                         };
                                         if game_executor.game.state.is_some() {
-                                            let seralized = serde_json::to_string(&MessageType::Game(game_executor.game.clone()));
-                                            let _ = sink.start_send(Message::from(seralized.unwrap()));
+                                            let seralized = serde_json::to_string(
+                                                &MessageType::Game(game_executor.game.clone()),
+                                            );
+                                            let _ =
+                                                sink.start_send(Message::from(seralized.unwrap()));
                                         };
                                         self.current_game = Some(game_executor_mtx.clone());
                                         // Subscribe to game state
                                         Ok(())
                                     } else {
-                                        Err("Players must set a name before joining a game.".to_string())
+                                        Err("Players must set a name before joining a game."
+                                            .to_string())
                                     }
                                 } else {
-                                    Err(format!("Could not find a game with an id of \"{}\"", &game_metadata.game_id))
+                                    Err(format!(
+                                        "Could not find a game with an id of \"{}\"",
+                                        &game_metadata.game_id
+                                    ))
                                 }
                             } else {
                                 Err("RwLock poisoned, game state corrupted".to_string())
                             }
                             //Send game state
-                        },
+                        }
                         MessageType::SetName(name_data) => {
                             //Replace player to avoid mutexes/refcells and such
                             self.player = Some(Player {
-                                    name: name_data.name,
-                                    index: 0 //Garbag data
+                                name: name_data.name,
+                                index: 0, //Garbag data
                             });
                             Ok(())
-                        },
-                        MessageType::StartGame => {
-                            self.current_game.as_ref().ok_or_else(|| "Player is not currently in a game".to_string()).and_then(|game_executor| {
-                                game_executor.lock().map_err(|_| "Poisoned mutex".to_string())?.start_game()
-                            })
-                        },
-                        MessageType::GameMove(game_move) => {
-                            self.current_game.as_ref().ok_or_else(|| "Player is not currently in a game".to_string()).and_then(|game_executor_mtx| {
-                                let mut game_executor = game_executor_mtx.lock().map_err(|_| "Poisoned mutex".to_string())?;
-                                let timed_move = game_executor.create_move(game_move.from, game_move.to)?;
-                                game_executor.add_move(self.player.as_ref().unwrap(),timed_move)
-                            })
                         }
+                        MessageType::StartGame => self
+                            .current_game
+                            .as_ref()
+                            .ok_or_else(|| "Player is not currently in a game".to_string())
+                            .and_then(|game_executor| {
+                                game_executor
+                                    .lock()
+                                    .map_err(|_| "Poisoned mutex".to_string())?
+                                    .start_game()
+                            }),
+                        MessageType::GameMove(game_move) => self
+                            .current_game
+                            .as_ref()
+                            .ok_or_else(|| "Player is not currently in a game".to_string())
+                            .and_then(|game_executor_mtx| {
+                                let mut game_executor = game_executor_mtx
+                                    .lock()
+                                    .map_err(|_| "Poisoned mutex".to_string())?;
+                                let timed_move =
+                                    game_executor.create_move(game_move.from, game_move.to)?;
+                                game_executor.add_move(self.player.as_ref().unwrap(), timed_move)
+                            }),
                         _ => Err("The provided message type was not found.".to_string()),
                     }
                 } else {
@@ -160,16 +197,14 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                 Err(e) => {
                     let mut sink = self.sink.lock().unwrap();
                     let _ = sink.start_send(Message::from(
-                        serde_json::to_string(&MessageType::Error(e)).unwrap()
+                        serde_json::to_string(&MessageType::Error(e)).unwrap(),
                     ));
                 }
             };
         }
     }
 
-    pub async fn handle_new_client(
-        &mut self
-    ) {
+    pub async fn handle_new_client(&mut self) {
         use ipg_core::protocol::messages::{GameList, MessageType};
         let mut sink = self.sink.lock().unwrap();
         let result = match self.instance.games.read() {
@@ -184,7 +219,7 @@ where S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static
                     games: games_metadata,
                 }));
                 let _ = sink.start_send(Message::from(seralized.unwrap()));
-                Ok(()) 
+                Ok(())
             }
             Err(_) => Err("Game state corrupted by poisned mutex.".to_string()),
         };

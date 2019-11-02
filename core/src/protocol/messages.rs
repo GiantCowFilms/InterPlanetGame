@@ -1,4 +1,4 @@
-use crate::game::{ Galaxy, GameConfig, Game, Move };
+use crate::game::{Galaxy, Game, GameConfig, Move};
 use serde::{Deserialize, Serialize};
 
 cfg_if! {
@@ -9,46 +9,46 @@ cfg_if! {
 
 #[derive(Deserialize, Serialize)]
 pub struct SetName {
-    pub name: String
+    pub name: String,
 }
 
-#[derive(Deserialize,Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct GameState {
-    pub galaxy: Galaxy
+    pub galaxy: Galaxy,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct GameMove {
     pub to: u16,
-    pub from: u16
+    pub from: u16,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct CreateGame {
     pub map_id: String,
-    pub config: GameConfig
+    pub config: GameConfig,
 }
 
 //#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Deserialize, Serialize)]
 pub struct GameMetadata {
-    pub game_id: String
+    pub game_id: String,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct GameList {
-    pub games: Vec<GameMetadata>
+    pub games: Vec<GameMetadata>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct GamePlayers {
     pub game_id: String,
-    pub players: Vec<PlayerMetadata>
+    pub players: Vec<PlayerMetadata>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct PlayerMetadata {
-    name: String
+    name: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -66,5 +66,5 @@ pub enum MessageType {
     NewGame(GameMetadata),
     GameList(GameList),
     CreateGame(CreateGame),
-    Error(String)
+    Error(String),
 }

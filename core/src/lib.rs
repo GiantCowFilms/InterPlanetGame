@@ -15,6 +15,5 @@ cfg_if! {
     }
 }
 
-
 pub mod game;
 pub mod protocol;

@@ -27,7 +27,6 @@ pub struct Map {
 }
 
 impl Map {
-
     /// Parses a map from a json string
     ///
     /// #Example
@@ -60,7 +59,7 @@ impl Map {
             let mut possesion = match planet.possession.get(players.len() - 2) {
                 Some(0) => Ok(None),
                 Some(possesion_index) => match players.get_mut(*possesion_index as usize - 1) {
-                    Some(player) => { 
+                    Some(player) => {
                         Ok(Some(player))
                     },
                     None => Err(format!("Error encoutnered parsing map. A planet's possessions property specifiies player {} of {} players.",possesion_index - 1, players.len() ))
@@ -85,7 +84,7 @@ impl Map {
         })
     }
 
-    pub fn max_players (self) -> usize {
+    pub fn max_players(self) -> usize {
         self.planets[0].possession.len()
     }
 }

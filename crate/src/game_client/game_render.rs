@@ -1,9 +1,11 @@
-use web_sys::{ HtmlCanvasElement, WebGlProgram, WebGl2RenderingContext, CanvasRenderingContext2d, WebGlShader };
-use wasm_bindgen::{ JsCast, JsValue };
-use ipg_core::game::{ Galaxy, Game, Move, map::Map, SHIP_SPEED };
+use ipg_core::game::{map::Map, Galaxy, Game, Move, SHIP_SPEED};
 use std::f64::consts::PI;
-use web_sys::console;
 use std::rc::Rc;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::console;
+use web_sys::{
+    CanvasRenderingContext2d, HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader,
+};
 
 macro_rules! log {
     ( $( $t:tt )* ) => {
@@ -16,22 +18,22 @@ macro_rules! check_webgl {
         #[cfg(feature = "webgl_errors")]
         {
             if $t.get_error() != 0 {
-                return Err(format!("WebGL Operation failed {}",$t.get_error()));
+                return Err(format!("WebGL Operation failed {}", $t.get_error()));
             }
         }
     };
 }
 
 pub struct GameRender {
-    canvases: [HtmlCanvasElement;2],
+    canvases: [HtmlCanvasElement; 2],
     gl: Rc<WebGl2RenderingContext>,
     ship_shader: WebGlProgram,
     context_2d: CanvasRenderingContext2d,
     completed_move_index: usize,
-    move_renders: Vec<MoveRender>
+    move_renders: Vec<MoveRender>,
 }
 
-static PLAYER_COLORS: [&str;9] = [
+static PLAYER_COLORS: [&str; 9] = [
     "#878787", //Neutral Gray
     "#de4b37", //Red
     "#7dc740", //Green
@@ -43,7 +45,8 @@ static PLAYER_COLORS: [&str;9] = [
     "#a565e0", //Lavender
 ];
 
-static SHIP_VERTEX: &'static str = concat!(r#"#version 300 es
+static SHIP_VERTEX: &'static str = concat!(
+    r#"#version 300 es
 
 #ifdef GL_ES
 precision mediump float;
@@ -75,7 +78,8 @@ void main()
     gl_Position = vec4(pos * transform + (travel / ratio * 2.0 - 1.0), 0.0, 1.0);
     //gl_Position = vec4(pos, 1.0, 1.0);
 }  
-"#); 
+"#
+);
 
 static SHIP_FRAGMENT: &'static str = r#"#version 300 es
 #ifdef GL_ES
@@ -94,7 +98,7 @@ void main()
     }
 }
 
-"#; 
+"#;
 
 pub fn compile_shader(
     context: &WebGl2RenderingContext,
@@ -146,69 +150,109 @@ pub fn link_program(
     }
 }
 
-pub fn create_ship_shader(gl_context: &WebGl2RenderingContext) -> Result<WebGlProgram,JsValue> {
-    let vertex_shader = compile_shader(gl_context,WebGl2RenderingContext::VERTEX_SHADER,SHIP_VERTEX)?;
-    let fragment_shader = compile_shader(gl_context,WebGl2RenderingContext::FRAGMENT_SHADER,SHIP_FRAGMENT)?;
-    let program = link_program(gl_context,&vertex_shader,&fragment_shader)?;
+pub fn create_ship_shader(gl_context: &WebGl2RenderingContext) -> Result<WebGlProgram, JsValue> {
+    let vertex_shader = compile_shader(
+        gl_context,
+        WebGl2RenderingContext::VERTEX_SHADER,
+        SHIP_VERTEX,
+    )?;
+    let fragment_shader = compile_shader(
+        gl_context,
+        WebGl2RenderingContext::FRAGMENT_SHADER,
+        SHIP_FRAGMENT,
+    )?;
+    let program = link_program(gl_context, &vertex_shader, &fragment_shader)?;
     Ok(program)
 }
 
 impl GameRender {
-    pub fn new(canvas_top: HtmlCanvasElement,canvas_bottom: HtmlCanvasElement) -> Result<Self, JsValue> {
+    pub fn new(
+        canvas_top: HtmlCanvasElement,
+        canvas_bottom: HtmlCanvasElement,
+    ) -> Result<Self, JsValue> {
         let gl_context = canvas_top
-        .get_context("webgl2")?
-        .expect("Unwrap gl_context")
-        .dyn_into::<WebGl2RenderingContext>()?;
+            .get_context("webgl2")?
+            .expect("Unwrap gl_context")
+            .dyn_into::<WebGl2RenderingContext>()?;
 
         let context_2d = canvas_bottom
-        .get_context("2d")?
-        .expect("Unwrap 2d context")
-        .dyn_into::<CanvasRenderingContext2d>()?;
+            .get_context("2d")?
+            .expect("Unwrap 2d context")
+            .dyn_into::<CanvasRenderingContext2d>()?;
         let ship_shader = create_ship_shader(&gl_context)?;
 
         Ok(Self {
-            canvases: [canvas_top,canvas_bottom],
+            canvases: [canvas_top, canvas_bottom],
             gl: Rc::new(gl_context),
             ship_shader,
             context_2d,
             completed_move_index: 0,
-            move_renders: Vec::new()
+            move_renders: Vec::new(),
         })
     }
 
-    pub fn render_galaxy(&mut self, game: &Game) -> Result<(),JsValue> {
+    pub fn render_galaxy(&mut self, game: &Game) -> Result<(), JsValue> {
         for canvas in &self.canvases {
             canvas.set_width(game.map.size.x);
             canvas.set_height(game.map.size.y);
-        };
+        }
         match &game.state {
             Some(state) => {
                 for planet in &state.planets {
                     self.context_2d.begin_path();
-                    self.context_2d.arc(planet.x as f64, planet.y as f64, planet.radius.into(), 0f64, 2f64 * PI)?;
-                    self.context_2d.set_stroke_style(&JsValue::from(PLAYER_COLORS[planet.possession.map(|p| p + 1).unwrap_or(0)]));
+                    self.context_2d.arc(
+                        planet.x as f64,
+                        planet.y as f64,
+                        planet.radius.into(),
+                        0f64,
+                        2f64 * PI,
+                    )?;
+                    self.context_2d.set_stroke_style(&JsValue::from(
+                        PLAYER_COLORS[planet.possession.map(|p| p + 1).unwrap_or(0)],
+                    ));
                     self.context_2d.stroke();
-                    self.context_2d.fill_text((planet.value as u32).to_string().as_str(),planet.x as f64,planet.y as f64)?;
-                };
-                self.render_ships(state,&game.map)?;
-            },
+                    self.context_2d.fill_text(
+                        (planet.value as u32).to_string().as_str(),
+                        planet.x as f64,
+                        planet.y as f64,
+                    )?;
+                }
+                self.render_ships(state, &game.map)?;
+            }
             None => {
                 for planet in &game.map.planets {
                     self.context_2d.begin_path();
-                    self.context_2d.arc(planet.x as f64, planet.y as f64, planet.radius.into(), 0f64, 2f64 * PI)?;
-                    self.context_2d.set_stroke_style(&JsValue::from(PLAYER_COLORS[planet.possession[game.players.len()] as usize]));
+                    self.context_2d.arc(
+                        planet.x as f64,
+                        planet.y as f64,
+                        planet.radius.into(),
+                        0f64,
+                        2f64 * PI,
+                    )?;
+                    self.context_2d.set_stroke_style(&JsValue::from(
+                        PLAYER_COLORS[planet.possession[game.players.len()] as usize],
+                    ));
                     self.context_2d.stroke();
-                    self.context_2d.fill_text((planet.start_value as u32).to_string().as_str(),planet.x as f64,planet.y as f64)?;
+                    self.context_2d.fill_text(
+                        (planet.start_value as u32).to_string().as_str(),
+                        planet.x as f64,
+                        planet.y as f64,
+                    )?;
                 }
             }
         };
         Ok(())
     }
 
-    pub fn render_ships(&mut self, galaxy: &Galaxy, map: &Map) -> Result<(),String> {
+    pub fn render_ships(&mut self, galaxy: &Galaxy, map: &Map) -> Result<(), String> {
         log!("render_ships");
         self.gl.cull_face(WebGl2RenderingContext::FRONT_AND_BACK);
-        self.gl.viewport(0,0,self.canvases[0].width() as i32,self.canvases[0].height() as i32);
+        self.gl.viewport(
+            0,
+            0,
+            self.canvases[0].width() as i32,
+            self.canvases[0].height() as i32,
+        );
 
         //Shader Setup
         // let vertex_shader = compile_shader(&self.gl,WebGl2RenderingContext::VERTEX_SHADER,SHIP_VERTEX)?;
@@ -217,52 +261,69 @@ impl GameRender {
         self.gl.use_program(Some(&self.ship_shader));
         check_webgl!(self.gl);
 
-        for game_move in (&galaxy.moves).iter().skip(self.completed_move_index).filter(|game_move| game_move.end_time() > galaxy.time) {
-            self.move_renders.push(MoveRender::new(game_move.clone(),self.gl.clone(),map)?);
+        for game_move in (&galaxy.moves)
+            .iter()
+            .skip(self.completed_move_index)
+            .filter(|game_move| game_move.end_time() > galaxy.time)
+        {
+            self.move_renders
+                .push(MoveRender::new(game_move.clone(), self.gl.clone(), map)?);
             self.completed_move_index += 1;
-        };
-        self.move_renders.retain(|move_render| {
-            move_render.game_move.end_time() > galaxy.time
-        });
-        log!("{}",self.move_renders.len());
+        }
+        self.move_renders
+            .retain(|move_render| move_render.game_move.end_time() > galaxy.time);
+        log!("{}", self.move_renders.len());
         for move_render in self.move_renders.iter_mut() {
             let game_move = &move_render.game_move;
             // Uniforms
-            if let Some(travel_time_loc) = self.gl.get_uniform_location(&self.ship_shader,"travel_time") {
-                self.gl.uniform1ui(Some(&travel_time_loc),galaxy.time - game_move.time);
+            if let Some(travel_time_loc) = self
+                .gl
+                .get_uniform_location(&self.ship_shader, "travel_time")
+            {
+                self.gl
+                    .uniform1ui(Some(&travel_time_loc), galaxy.time - game_move.time);
                 log!("Travel time: {}", galaxy.time - game_move.time)
             } else {
                 log!("WARNING: Unable to find uniform travel_time.");
             };
-            let destination_loc = self.gl.get_uniform_location(&self.ship_shader,"destination").ok_or("Unable to find uniform.")?;
-            self.gl.uniform2fv_with_f32_array(Some(&destination_loc),vec![
-                game_move.to.x as f32,
-                (map.size.y as f32) - game_move.to.y as f32,
-            ].as_slice());
-            if let Some(res_x) = self.gl.get_uniform_location(&self.ship_shader,"res_x") {
-                self.gl.uniform1ui(Some(&res_x),map.size.x);
+            let destination_loc = self
+                .gl
+                .get_uniform_location(&self.ship_shader, "destination")
+                .ok_or("Unable to find uniform.")?;
+            self.gl.uniform2fv_with_f32_array(
+                Some(&destination_loc),
+                vec![
+                    game_move.to.x as f32,
+                    (map.size.y as f32) - game_move.to.y as f32,
+                ]
+                .as_slice(),
+            );
+            if let Some(res_x) = self.gl.get_uniform_location(&self.ship_shader, "res_x") {
+                self.gl.uniform1ui(Some(&res_x), map.size.x);
             } else {
                 log!("WARNING: Unable to find uniform res_x.");
             };
-            if let Some(res_y) = self.gl.get_uniform_location(&self.ship_shader,"res_y") {
-                self.gl.uniform1ui(Some(&res_y),map.size.y);
+            if let Some(res_y) = self.gl.get_uniform_location(&self.ship_shader, "res_y") {
+                self.gl.uniform1ui(Some(&res_y), map.size.y);
             } else {
                 log!("WARNING: Unable to find uniform res_y.");
             };
-            if let Some(to_radius) = self.gl.get_uniform_location(&self.ship_shader,"to_radius") {
-                self.gl.uniform1f(Some(&to_radius),game_move.to.radius);
+            if let Some(to_radius) = self.gl.get_uniform_location(&self.ship_shader, "to_radius") {
+                self.gl.uniform1f(Some(&to_radius), game_move.to.radius);
             } else {
                 log!("WARNING: Unable to find uniform to_radius.");
             };
-            if let Some(from_radius) = self.gl.get_uniform_location(&self.ship_shader,"from_radius") {
-                self.gl.uniform1f(Some(&from_radius),game_move.from.radius);
+            if let Some(from_radius) = self
+                .gl
+                .get_uniform_location(&self.ship_shader, "from_radius")
+            {
+                self.gl.uniform1f(Some(&from_radius), game_move.from.radius);
             } else {
                 log!("WARNING: Unable to find uniform from_radius.");
             };
 
             move_render.render(galaxy)?;
-
-        };
+        }
         Ok(())
     }
 }
@@ -281,19 +342,27 @@ pub struct MoveRender {
 }
 
 impl MoveRender {
-    pub fn new(game_move: Move, gl_ctx: Rc<WebGl2RenderingContext>, map: &Map) -> Result<MoveRender,String> {
+    pub fn new(
+        game_move: Move,
+        gl_ctx: Rc<WebGl2RenderingContext>,
+        map: &Map,
+    ) -> Result<MoveRender, String> {
         let ship_count = game_move.armada_size;
         let mut positions = vec![0f32; ship_count as usize * 2];
-        { 
+        {
             let mut i = 0usize;
-            for (x,y) in game_move.start_positions() {
-                positions[i] = x; i += 1;
-                positions[i] = map.size.y as f32 - y; i += 1; //Flip y axis
+            for (x, y) in game_move.start_positions() {
+                positions[i] = x;
+                i += 1;
+                positions[i] = map.size.y as f32 - y;
+                i += 1; //Flip y axis
             }
         }
 
         //VAO
-        let vao = gl_ctx.create_vertex_array().ok_or("Could not vertex array")?;
+        let vao = gl_ctx
+            .create_vertex_array()
+            .ok_or("Could not vertex array")?;
         check_webgl!(gl_ctx);
 
         gl_ctx.bind_vertex_array(Some(&vao));
@@ -301,21 +370,32 @@ impl MoveRender {
 
         //Ship Positions
         let ship_positions_vbo = gl_ctx.create_buffer().ok_or("Could not create buffer")?;
-        gl_ctx.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&ship_positions_vbo));
+        gl_ctx.bind_buffer(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            Some(&ship_positions_vbo),
+        );
         unsafe {
-            gl_ctx.buffer_data_with_u8_array(WebGl2RenderingContext::ARRAY_BUFFER, std::slice::from_raw_parts(positions.as_ptr() as *const u8, positions.len() * 4), WebGl2RenderingContext::STATIC_DRAW);
+            gl_ctx.buffer_data_with_u8_array(
+                WebGl2RenderingContext::ARRAY_BUFFER,
+                std::slice::from_raw_parts(positions.as_ptr() as *const u8, positions.len() * 4),
+                WebGl2RenderingContext::STATIC_DRAW,
+            );
         };
 
         // Ship Verticies
-        let ship_verts: Vec<f32> = vec![-0.25f32,-0.5,0.25,-0.5,0.0,0.5].iter().map(|f| f/80.0).collect();
+        let ship_verts: Vec<f32> = vec![-0.25f32, -0.5, 0.25, -0.5, 0.0, 0.5]
+            .iter()
+            .map(|f| f / 80.0)
+            .collect();
         let ship_verts_vbo = gl_ctx.create_buffer().ok_or("Could not create buffer")?;
-        gl_ctx.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&ship_verts_vbo));
+        gl_ctx.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&ship_verts_vbo));
         check_webgl!(gl_ctx);
         unsafe {
             gl_ctx.buffer_data_with_u8_array(
-                WebGl2RenderingContext::ARRAY_BUFFER, 
+                WebGl2RenderingContext::ARRAY_BUFFER,
                 std::slice::from_raw_parts(ship_verts.as_ptr() as *const u8, ship_verts.len() * 4),
-                WebGl2RenderingContext::STATIC_DRAW);
+                WebGl2RenderingContext::STATIC_DRAW,
+            );
             check_webgl!(gl_ctx);
         }
 
@@ -324,28 +404,51 @@ impl MoveRender {
             gl: gl_ctx,
             positions_vbo: ship_positions_vbo,
             verts_vbo: ship_verts_vbo,
-            verts_vao: vao
+            verts_vao: vao,
         })
     }
 
-    pub fn render(&self, galaxy: &Galaxy) -> Result<(),String> {
-        self.gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&self.positions_vbo));
-        self.gl.vertex_attrib_pointer_with_i32(SHIP_START_POS,2,WebGl2RenderingContext::FLOAT, false, 0, 0);
+    pub fn render(&self, galaxy: &Galaxy) -> Result<(), String> {
+        self.gl.bind_buffer(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            Some(&self.positions_vbo),
+        );
+        self.gl.vertex_attrib_pointer_with_i32(
+            SHIP_START_POS,
+            2,
+            WebGl2RenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
         check_webgl!(self.gl);
         self.gl.enable_vertex_attrib_array(SHIP_START_POS);
         check_webgl!(self.gl);
-        self.gl.vertex_attrib_divisor(SHIP_START_POS,1);
+        self.gl.vertex_attrib_divisor(SHIP_START_POS, 1);
         check_webgl!(self.gl);
 
-        self.gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER,Some(&self.verts_vbo));
+        self.gl
+            .bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&self.verts_vbo));
 
         self.gl.enable_vertex_attrib_array(SHIP_VERTS);
         check_webgl!(self.gl);
 
-        self.gl.vertex_attrib_pointer_with_i32(SHIP_VERTS,2,WebGl2RenderingContext::FLOAT, false, 0, 0);
+        self.gl.vertex_attrib_pointer_with_i32(
+            SHIP_VERTS,
+            2,
+            WebGl2RenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
         check_webgl!(self.gl);
 
-        self.gl.draw_arrays_instanced(WebGl2RenderingContext::TRIANGLES,0,3,self.game_move.armada_size as i32);
+        self.gl.draw_arrays_instanced(
+            WebGl2RenderingContext::TRIANGLES,
+            0,
+            3,
+            self.game_move.armada_size as i32,
+        );
         //log!("ship_count: {}, start_times: {:?}, positions: {:?}", ship_count, start_times, positions);
         check_webgl!(self.gl);
         Ok(())
@@ -355,9 +458,9 @@ impl MoveRender {
 impl Drop for MoveRender {
     fn drop(&mut self) {
         //Cleanup
-            self.gl.delete_buffer(Some(&self.positions_vbo));
-            //self.gl.delete_buffer(start_times_vbo.as_ref());
-            self.gl.delete_buffer(Some(&self.verts_vbo));
-            self.gl.delete_vertex_array(Some(&self.verts_vao));
-    } 
+        self.gl.delete_buffer(Some(&self.positions_vbo));
+        //self.gl.delete_buffer(start_times_vbo.as_ref());
+        self.gl.delete_buffer(Some(&self.verts_vbo));
+        self.gl.delete_vertex_array(Some(&self.verts_vao));
+    }
 }

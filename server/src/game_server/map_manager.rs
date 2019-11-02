@@ -1,6 +1,6 @@
-use std::fs;
 use ipg_core::game::map::Map;
 use std::collections::HashMap;
+use std::fs;
 
 pub trait MapManager {
     fn map_ids(&self) -> Vec<String>;

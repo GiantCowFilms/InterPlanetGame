@@ -1,27 +1,27 @@
-use tokio::prelude::*;
 use futures::sink::Sink;
 use futures::stream::Stream;
 use futures::sync::mpsc;
 use ipg_core::game::Game;
-use std::collections::HashMap;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use std::collections::HashMap;
 use std::future::Future;
 use std::iter;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::sync::{Mutex, RwLock};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::prelude::*;
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::{Error, Message};
 use tokio_tungstenite::WebSocketStream;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-pub mod map_manager;
 pub mod connection;
+pub mod map_manager;
 use self::connection::GameConnection;
 
 use futures::sync::mpsc::SendError;
-use ipg_core::protocol::messages::GameMetadata;
 use ipg_core::game::GameExecutor;
+use ipg_core::protocol::messages::GameMetadata;
 use std::convert::Into;
 
 pub struct GameServer {
@@ -34,14 +34,16 @@ trait GameList {
     fn add_game(&mut self, game: Game) -> String;
 }
 
-impl GameList for HashMap<String, Arc<Mutex<GameExecutor>>>
-{
+impl GameList for HashMap<String, Arc<Mutex<GameExecutor>>> {
     fn add_game(&mut self, game: Game) -> String {
         let game_id: String = iter::repeat(())
             .map(|()| thread_rng().sample(Alphanumeric))
             .take(7)
             .collect();
-        self.insert(game_id.clone(), Arc::new(Mutex::new(GameExecutor::from_game(game))));
+        self.insert(
+            game_id.clone(),
+            Arc::new(Mutex::new(GameExecutor::from_game(game))),
+        );
         game_id
     }
 }
@@ -89,7 +91,7 @@ impl GameServer {
     async fn handle_stream<'a>(instance: Arc<GameServer>, ws_stream: WebSocketStream<TcpStream>) {
         let (mut sink, mut stream) = ws_stream.split();
         tokio::spawn_async(async move {
-            let mut connection = GameConnection::new(instance.clone(),sink);
+            let mut connection = GameConnection::new(instance.clone(), sink);
             await!(connection.handle_new_client());
             while let Some(Ok(message)) = await!(stream.next()) {
                 let message = message;
