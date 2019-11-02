@@ -94,7 +94,7 @@ void main()
     if (arrived > 0.0) {
         ship_color = vec4(0.0,0.0,0.0,0.0);
     } else {
-        ship_color = vec4(0.0,0.0,0.0,1.0);
+        ship_color = vec4(0.8,0.8,0.8,1.0);
     }
 }
 
@@ -207,10 +207,14 @@ impl GameRender {
                         0f64,
                         2f64 * PI,
                     )?;
-                    self.context_2d.set_stroke_style(&JsValue::from(
+                    self.context_2d.set_fill_style(&JsValue::from(
                         PLAYER_COLORS[planet.possession.map(|p| p + 1).unwrap_or(0)],
                     ));
-                    self.context_2d.stroke();
+                    self.context_2d.fill();
+                    self.context_2d.set_fill_style(&JsValue::from("#ffffff"));
+                    self.context_2d.set_font(&"20px Sans-Serif");
+                    self.context_2d.set_text_align(&"center");
+                    self.context_2d.set_text_baseline(&"middle");
                     self.context_2d.fill_text(
                         (planet.value as u32).to_string().as_str(),
                         planet.x as f64,
@@ -229,10 +233,14 @@ impl GameRender {
                         0f64,
                         2f64 * PI,
                     )?;
-                    self.context_2d.set_stroke_style(&JsValue::from(
+                    self.context_2d.set_fill_style(&JsValue::from(
                         PLAYER_COLORS[planet.possession[game.players.len()] as usize],
                     ));
-                    self.context_2d.stroke();
+                    self.context_2d.fill();
+                    self.context_2d.set_fill_style(&JsValue::from("#ffffff"));
+                    self.context_2d.set_font(&"20px Sans-Serif");
+                    self.context_2d.set_text_align(&"center");
+                    self.context_2d.set_text_baseline(&"middle");
                     self.context_2d.fill_text(
                         (planet.start_value as u32).to_string().as_str(),
                         planet.x as f64,
