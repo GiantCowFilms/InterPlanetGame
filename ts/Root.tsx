@@ -22,7 +22,7 @@ function Root() {
     });
     let [playerName,setPlayerName] = useState(undefined);
     return <>
-        <div>Inter-Planet Game</div>
+        <div className="title">Inter-Planet Game</div>
         <ModeContext.Provider value={{
             mode,
             setMode

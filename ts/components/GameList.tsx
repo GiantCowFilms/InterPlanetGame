@@ -36,11 +36,13 @@ function GameList() {
     }
 
     return <>
-        {games.map((game) => (<div key={game.game_id} onClick={() => {
-            handleGameSelection(game);
-        }}>
-            {game.game_id}
-        </div>))}
+        <div className="game-list">
+            {games.map((game) => (<div className="game-card" key={game.game_id} onClick={() => {
+                handleGameSelection(game);
+            }}>
+                {game.game_id}
+            </div>))}
+        </div>
         <div onClick={createGame}>New Game!</div>
     </>;
 }

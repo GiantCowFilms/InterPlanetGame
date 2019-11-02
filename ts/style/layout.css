@@ -1,0 +1,17 @@
+html {
+    font-family: sans-serif;
+}
+
+#root {
+    display: grid;
+    grid-auto-columns: auto;
+    grid-template-rows: 4em auto 4em;
+    row-gap: 1em;
+}
+
+.game-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(20em, 1fr));
+    gap: 1em;
+}
+
