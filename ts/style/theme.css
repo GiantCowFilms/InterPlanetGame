@@ -3,6 +3,42 @@ html {
     background-color:#121212;
 }
 
-.game-card {
+input, select {
+    color: white;
+    background-color: #656565;
+    border: none;
+    border-radius: 0.2em;
+}
+
+.button, button {
+    background-color: #656565;
+    background: rgba(134, 222, 68, 1);
+    box-shadow: 0 0 1em rgba(134, 222, 68, 0.4);
+    border-radius: 0.2em;
+}
+
+.button:hover, button:hover {
+    background: rgb(141, 221, 80);
+    box-shadow: 0 0 1em rgba(134, 222, 68, 0.5);
+}
+
+.button:active, button:active {
+    background: rgb(115, 190, 58);
+    box-shadow: 0 0 1em rgba(134, 222, 68, 0.6);
+}
+
+.card {
     background-color: #454545;
+    border-radius: 0.3em;
+    overflow: hidden;
+}
+
+.card-inset {
+    background-color: #353535;
+}
+
+.title {
+    background-color: #454545;
+    color: rgb(152, 255, 75);
+    text-shadow: 0 0 1rem rgba(138, 255, 49, 0.5);
 }

@@ -40,20 +40,23 @@ function GameForm() {
             }
         }));
     };
-    return <div className="game-form">
-        <canvas ref={previewCanvas}>
+    return <div className="game-form card">
+        <canvas ref={previewCanvas} className="card-inset">
             
         </canvas>
-        <div>
-            <input type="text" pattern="[0-9]*" onChange={e => setMinPlayers(parseInt(e.target.value))} value={minPlayers} /><br/>
+        <div className="game-form-fields card-inside">
+            <h3>Create a Game</h3>
+            <label>Minimum Players</label>
+            <input type="text" pattern="[0-9]*" onChange={e => setMinPlayers(parseInt(e.target.value))} value={minPlayers} />
+            <label>Map</label>
             <select onChange={e => setMapId(e.target.value)} value={mapId}>
                 <option selected={true} disabled={true} hidden value="">Select Map...</option>
                 {mapList.map((map_id: string) => {
                     return <option key={map_id} value={map_id}>{map_id}</option>;
                 })}
             </select>
+            <div className="button" onClick={createGame}>New Game!</div>
         </div>
-        <div onClick={createGame}>New Game!</div>
     </div>;
 }
 

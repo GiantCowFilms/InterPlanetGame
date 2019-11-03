@@ -49,7 +49,7 @@ function GameWindow(props: Props) {
         <div style={{
             "position": "relative"
         }}>
-            {gameStarted ? undefined : <div onClick={startGame}>Start Game!</div>}
+            {gameStarted ? undefined : <div onClick={startGame} className="button">Start Game!</div>}
             <canvas id="game-canvas-top" ref={canvasTop} style={{
                 "position": "absolute"
             }} onMouseDown={MouseEvent} onMouseUp={MouseEvent}>

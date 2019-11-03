@@ -12,9 +12,10 @@ function PlayerName (props: Props) {
         props.onSubmit(playerName);
     };
     return (
-        <div>
+        <div className="card card-inside">
+            <h3>Choose an Alias</h3>
             <input onChange={(e) => setPlayerName(e.target.value)} value={playerName} />
-            <div onClick={setName}>
+            <div onClick={setName} className="button">
                 Save
             </div>
         </div>
