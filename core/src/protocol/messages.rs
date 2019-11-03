@@ -1,5 +1,6 @@
-use crate::game::{Galaxy, Game, GameConfig, Move};
+use crate::game::{Galaxy, Game, GameConfig, Move, map::Map};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -65,6 +66,7 @@ pub enum MessageType {
     ExitGame,
     NewGame(GameMetadata),
     GameList(GameList),
+    MapList(HashMap<String,Map>),
     CreateGame(CreateGame),
     Error(String),
 }

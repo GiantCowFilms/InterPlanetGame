@@ -193,6 +193,10 @@ where
                     games: games_metadata,
                 }));
                 let _ = sink.start_send(Message::from(seralized.unwrap()));
+                let map_manager = self.instance.map_manager.lock().expect("Game state corrupted by poisned mutex");
+                let message = &MessageType::MapList(map_manager.maps() );
+                let seralized = serde_json::to_string(message);
+                let _ = sink.start_send(Message::from(seralized.unwrap()));
                 Ok(())
             }
             Err(_) => Err("Game state corrupted by poisned mutex.".to_owned()),
