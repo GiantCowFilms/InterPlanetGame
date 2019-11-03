@@ -165,6 +165,36 @@ pub fn create_ship_shader(gl_context: &WebGl2RenderingContext) -> Result<WebGlPr
     Ok(program)
 }
 
+pub fn render_map(context_2d: &CanvasRenderingContext2d, map: &Map, player_count: usize, width: u32, height: u32) -> Result<(),JsValue> {
+    let x_ratio = width as f64 / map.size.x as f64;
+    let y_ratio = height as f64 / map.size.y as f64;
+    let ratio = y_ratio.min(x_ratio);
+    for planet in &map.planets {
+        context_2d.begin_path();
+        context_2d.arc(
+            planet.x as f64 * ratio,
+            planet.y as f64 * ratio,
+            f64::from(planet.radius) * ratio,
+            0f64,
+            2f64 * PI,
+        )?;
+        context_2d.set_fill_style(&JsValue::from(
+            PLAYER_COLORS[planet.possession[player_count] as usize],
+        ));
+        context_2d.fill();
+        context_2d.set_fill_style(&JsValue::from("#ffffff"));
+        context_2d.set_font(&"20px Sans-Serif");
+        context_2d.set_text_align(&"center");
+        context_2d.set_text_baseline(&"middle");
+        context_2d.fill_text(
+            (planet.start_value as u32).to_string().as_str(),
+            planet.x as f64 * ratio,
+            planet.y as f64 * ratio,
+        )?;
+    };
+    Ok(())
+}
+
 impl GameRender {
     pub fn new(
         canvas_top: HtmlCanvasElement,
@@ -224,29 +254,7 @@ impl GameRender {
                 self.render_ships(state, &game.map)?;
             }
             None => {
-                for planet in &game.map.planets {
-                    self.context_2d.begin_path();
-                    self.context_2d.arc(
-                        planet.x as f64,
-                        planet.y as f64,
-                        planet.radius.into(),
-                        0f64,
-                        2f64 * PI,
-                    )?;
-                    self.context_2d.set_fill_style(&JsValue::from(
-                        PLAYER_COLORS[planet.possession[game.players.len()] as usize],
-                    ));
-                    self.context_2d.fill();
-                    self.context_2d.set_fill_style(&JsValue::from("#ffffff"));
-                    self.context_2d.set_font(&"20px Sans-Serif");
-                    self.context_2d.set_text_align(&"center");
-                    self.context_2d.set_text_baseline(&"middle");
-                    self.context_2d.fill_text(
-                        (planet.start_value as u32).to_string().as_str(),
-                        planet.x as f64,
-                        planet.y as f64,
-                    )?;
-                }
+                render_map(&self.context_2d,&game.map,game.players.len(),game.map.size.x,game.map.size.y)?;
             }
         };
         Ok(())
