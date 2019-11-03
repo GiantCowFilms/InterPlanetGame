@@ -34,6 +34,7 @@ pub struct CreateGame {
 #[derive(Deserialize, Serialize)]
 pub struct GameMetadata {
     pub game_id: String,
+    pub map_id: String
 }
 
 #[derive(Deserialize, Serialize)]
@@ -52,10 +53,12 @@ pub struct PlayerMetadata {
     name: String,
 }
 
+type GameID = String;
+
 #[derive(Deserialize, Serialize)]
 pub enum MessageType {
     SetName(SetName),
-    EnterGame(GameMetadata),
+    EnterGame(GameID),
     Possession(u32),
     Game(Game),
     GameState(GameState),

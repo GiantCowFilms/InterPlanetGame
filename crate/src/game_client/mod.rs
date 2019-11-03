@@ -101,9 +101,7 @@ impl GameClient {
         if let Ok(game_metadata) =
             game_metadata.into_serde() as Result<GameMetadata, serde_json::Error>
         {
-            let message = serde_json::to_string(&MessageType::EnterGame(GameMetadata {
-                game_id: game_metadata.game_id.to_owned(),
-            }))
+            let message = serde_json::to_string(&MessageType::EnterGame(game_metadata.game_id.to_owned()))
             .unwrap();
             self.socket.send_with_str(message.as_str());
         }

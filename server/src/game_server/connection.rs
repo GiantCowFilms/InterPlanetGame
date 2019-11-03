@@ -74,7 +74,8 @@ where
                         let mut games = self.instance.games.write().map_err(|_| "Game state corrupted by poisoned mutex. Please report this bug.".to_owned())?;
                         let game_id = games.add_game(game);
                         let seralized = serde_json::to_string(&MessageType::NewGame(GameMetadata {
-                            game_id
+                            game_id,
+                            map_id: game_settings.map_id
                         }));
                         let _ = sink.start_send(Message::from(seralized.unwrap()));
                         Ok(())
@@ -84,12 +85,12 @@ where
                         let _ = sink.start_send(Message::from("ExitGame"));
                         Ok(())
                     }
-                    MessageType::EnterGame(game_metadata) => {
+                    MessageType::EnterGame(game_id) => {
                         let mut sink = self.sink.lock().unwrap();
                         let mut games = self.instance.games.write().map_err(|_| "Game state corrupted by poisoned mutex. Please report this bug.".to_owned())?;
-                        let game_executor_mtx = games.get_mut(&game_metadata.game_id).ok_or_else(|| format!(
+                        let game_executor_mtx = games.get_mut(&game_id).ok_or_else(|| format!(
                             "Could not find a game with an id of \"{}\"",
-                            &game_metadata.game_id
+                            &game_id
                         ))?;
                         let mut game_executor = game_executor_mtx.lock().unwrap();
                         let player = self.player.as_ref().ok_or_else(|| "Players must set a name before joining a game.".to_owned())?;
@@ -109,9 +110,7 @@ where
                             },
                         ));
                         let seralized = serde_json::to_string(
-                            &MessageType::EnterGame(GameMetadata {
-                                game_id: game_metadata.game_id.clone(),
-                            }),
+                            &MessageType::EnterGame(game_id.clone()),
                         );
                         let _ = sink.start_send(Message::from(seralized.unwrap()));
                         if let Some(player) = &self.player {
@@ -187,6 +186,7 @@ where
                     .iter()
                     .map(|(key, val)| GameMetadata {
                         game_id: key.clone(),
+                        map_id: val.lock().unwrap().game.map.name.clone()
                     })
                     .collect();
                 let seralized = serde_json::to_string(&MessageType::GameList(GameList {
