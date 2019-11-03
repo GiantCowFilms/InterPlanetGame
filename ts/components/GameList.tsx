@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from "react";
 import {gameConnectionSingleton} from "../connection/index";
 import { GameClient } from "inter-planet-game";
 import { ModeContext } from "../state/mode";
+import GameForm from "./GameForm";
 
 interface Props {
 
@@ -24,18 +25,8 @@ function GameList() {
         })
     };
 
-    const createGame = () => {
-        gameConnectionSingleton.socket.send(JSON.stringify({
-            "CreateGame": {
-                map_id: "Example Map",
-                config: {
-                    min_players: 2
-                }
-            }
-        }));
-    }
-
     return <>
+        <GameForm />
         <div className="game-list">
             {games.map((game) => (<div className="game-card" key={game.game_id} onClick={() => {
                 handleGameSelection(game);
@@ -43,7 +34,6 @@ function GameList() {
                 {game.game_id}
             </div>))}
         </div>
-        <div onClick={createGame}>New Game!</div>
     </>;
 }
 

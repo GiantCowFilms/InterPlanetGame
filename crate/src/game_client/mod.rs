@@ -1,10 +1,12 @@
-use ipg_core::game::{Game, GameExecutor, Planet};
+use ipg_core::game::{Game, GameExecutor, Planet, map::Map};
 use ipg_core::protocol::messages::{
     GameList, GameMetadata, GameMove, GameState, MessageType, SetName,
 };
 use js_sys;
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
-use web_sys::{HtmlCanvasElement, WebSocket};
+use wasm_bindgen::JsCast;
+use web_sys::{HtmlCanvasElement, WebSocket, CanvasRenderingContext2d};
 mod game_render;
 use self::game_render::GameRender;
 
@@ -18,6 +20,7 @@ pub struct GameClient {
     selected_planet: Option<Planet>, //Todo maybe move this somewhere else?
     current_posession_index: Option<u32>,
     socket: WebSocket,
+    maps: HashMap<String,Map>
 }
 
 #[wasm_bindgen]
@@ -31,6 +34,7 @@ impl GameClient {
             selected_planet: None,
             current_posession_index: None,
             socket, // on_game_list: Vec::new()
+            maps: HashMap::new()
         }
     }
 
@@ -63,6 +67,10 @@ impl GameClient {
                     None => self.current_game_state = Some(GameExecutor::from_game(game)),
                 };
                 Some("Game".to_string())
+            }
+            MessageType::MapList(map_list) => {
+                self.maps = map_list;
+                Some("MapList".to_owned())
             }
             _ => None,
         }
@@ -113,6 +121,21 @@ impl GameClient {
     ) -> Result<(), JsValue> {
         self.current_game_render = Some(GameRender::new(canvas_top, canvas_bottom)?);
         Ok(())
+    }
+
+    pub fn preview_game(&self, canvas: &HtmlCanvasElement, map_id: String) -> Result<(),JsValue> {
+        let ctx_2d = canvas.get_context("2d")?.expect("Unwrap 2d context")
+            .dyn_into::<CanvasRenderingContext2d>()?;
+        let map = self.maps.get(&map_id).ok_or(format!("Map {} not found.",map_id))?;
+        self::game_render::render_map(&ctx_2d,map,2,canvas.width(),canvas.height());
+        Ok(())
+    }
+
+    pub fn get_maps(&self) -> js_sys::Array {
+        self.maps.keys().map(|k| JsValue::from(k)).fold(js_sys::Array::new(),|arr,v| {
+            arr.push(&v);
+            arr
+        })
     }
 
     pub fn render_game_frame(&mut self, mut time: u32) -> Result<(), JsValue> {
