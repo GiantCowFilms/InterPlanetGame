@@ -5,7 +5,7 @@ use std::fs;
 pub trait MapManager {
     fn map_ids(&self) -> Vec<String>;
     fn map_by_id(&self, map_id: &String) -> Option<&Map>;
-    //fn map_from_ids (&self) -> Map;
+    fn maps(&self) -> HashMap<String,Map>;
 }
 
 pub struct FileSystemMapManager {
@@ -39,5 +39,9 @@ impl MapManager for FileSystemMapManager {
 
     fn map_by_id(&self, map_id: &String) -> Option<&Map> {
         self.maps.get(map_id)
+    }
+
+    fn maps(&self) -> HashMap<String,Map> {
+        self.maps.clone()
     }
 }
