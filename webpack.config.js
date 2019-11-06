@@ -39,7 +39,7 @@ module.exports = {
     }),
 
     new WasmPackPlugin({
-      crateDirectory: path.resolve(__dirname, "crate")
+      crateDirectory: path.resolve(__dirname, "client")
     }),
   ]
 };

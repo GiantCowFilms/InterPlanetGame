@@ -8,7 +8,7 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/server.exe",
+            "program": "${workspaceFolder}/target/debug/ipg_server.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

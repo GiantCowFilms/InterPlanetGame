@@ -1,10 +1,9 @@
 dist
 node_modules
-crate/bin
-crate/pkg
-crate/target
-crate/wasm-pack.log
-crate/Cargo.lock
-# target should technically be inside crate. Not sure what the issue is.
+client/bin
+client/pkg
+client/target
+client/wasm-pack.log
+client/Cargo.lock
 /target
 **/*.rs.bk

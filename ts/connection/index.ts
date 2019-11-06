@@ -1,4 +1,4 @@
-import { make, GameClient } from "inter-planet-game";
+import { make, GameClient } from "ipg_client";
 
 type GameConnection = {
     client: GameClient;

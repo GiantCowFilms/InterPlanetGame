@@ -22,7 +22,7 @@ jobs:
         run: rustup override set nightly-2019-04-20
         # Needed to prevet wasm-pack from ignoring Cargo.lock
       - name: build frontend crate
-        run: cargo build -p inter-planet-game --release --target wasm32-unknown-unknown
+        run: cargo build -p ipg_client --release --target wasm32-unknown-unknown
       - run: npm install
       - run: npm run build
       - name: Create Key File
