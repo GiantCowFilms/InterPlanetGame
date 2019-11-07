@@ -136,6 +136,15 @@ impl GameClient {
         })
     }
 
+    pub fn get_player_list(&self) -> Option<js_sys::Array> {
+        self.current_game_state.as_ref().map(|state| {
+            state.game.players.iter().map(|k| JsValue::from_serde(k).unwrap()).fold(js_sys::Array::new(),|arr,v| {
+                arr.push(&v);
+                arr
+            })
+        })
+    }
+
     pub fn render_game_frame(&mut self, mut time: u32) -> Result<(), JsValue> {
         let exec = self
             .current_game_state

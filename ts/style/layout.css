@@ -86,3 +86,11 @@ input, select, option {
 .game-form > button, .game-form > .button {
     justify-self: end;
 }
+
+.game-players {
+    display: inline-block;
+    position: fixed;
+    bottom: 1.5em;
+    right: 1.5em;
+    width: 9em;
+}

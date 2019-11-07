@@ -8,7 +8,7 @@ interface Props {
 function GameWindow(props: Props) {
     const canvasTop = useRef(null);
     const canvasBottom = useRef(null);
-    const players = useState([]);
+    const [players,setPlayers] = useState([]);
     const [gameStarted, setGameStarted] = useState(false);
     const startGame = () => {
         gameConnectionSingleton.client.start_game();
@@ -43,20 +43,29 @@ function GameWindow(props: Props) {
                 renderStarted = true;
             }
             setGameStarted(true);
+            setPlayers(gameConnectionSingleton.client.get_player_list());
         });
     }, [canvasTop, canvasBottom, props.game]);
     return (
-        <div style={{
-            "position": "relative"
-        }}>
-            {gameStarted ? undefined : <div onClick={startGame} className="button">Start Game!</div>}
-            <canvas id="game-canvas-top" ref={canvasTop} style={{
-                "position": "absolute"
-            }} onMouseDown={MouseEvent} onMouseUp={MouseEvent}>
-            </canvas>
-            <canvas id="game-canvas-bottom" ref={canvasBottom} >
-            </canvas>
-        </div>
+        <>
+            <div style={{
+                "position": "relative"
+            }}>
+                {gameStarted ? undefined : <div onClick={startGame} className="button">Start Game!</div>}
+                <canvas id="game-canvas-top" ref={canvasTop} style={{
+                    "position": "absolute"
+                }} onMouseDown={MouseEvent} onMouseUp={MouseEvent}>
+                </canvas>
+                <canvas id="game-canvas-bottom" ref={canvasBottom} >
+                </canvas>
+            </div>
+            <div className="card card-inside game-players"> 
+                <h4>Players</h4>
+                {players.map(player => {
+                    return <div>{player.name}</div>;
+                })}
+            </div>
+        </>
     );
 }
 

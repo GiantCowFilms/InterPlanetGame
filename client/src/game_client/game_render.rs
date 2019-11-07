@@ -2,6 +2,7 @@ use ipg_core::game::{map::Map, Galaxy, Game, Move, SHIP_SPEED};
 use std::f64::consts::PI;
 use std::rc::Rc;
 use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::prelude::*;
 use web_sys::console;
 use web_sys::{
     CanvasRenderingContext2d, HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader,
@@ -33,7 +34,7 @@ pub struct GameRender {
     move_renders: Vec<MoveRender>,
 }
 
-static PLAYER_COLORS: [&str; 9] = [
+pub static PLAYER_COLORS: [&str; 9] = [
     "#878787", //Neutral Gray
     "#de4b37", //Red
     "#7dc740", //Green
