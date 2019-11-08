@@ -15,6 +15,10 @@ input, select, option {
     font-size: 1em;
 }
 
+h1:first-child, h2:first-child, h3:first-child, h4:first-child {
+    margin-top: 0;
+}
+
 #root {
     display: grid;
     grid-auto-columns: auto;
@@ -23,7 +27,7 @@ input, select, option {
 }
 
 .card-inside {
-    padding: 2em;
+    padding: 1.5em;
 }
 
 .card canvas {
