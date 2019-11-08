@@ -97,7 +97,7 @@ where
                         self.player = Some(
                             game_executor
                                 .add_player(player.clone())
-                                .expect("Too many players"),
+                                .map_err(|_| "Too many players".to_owned())?
                         );
                         let handler_sink = self.sink.clone();
                         game_executor.event_source.on_event(Box::new(
