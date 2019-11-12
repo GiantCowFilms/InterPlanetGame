@@ -10,9 +10,11 @@ interface Props {
 function GameList() {
     const [games, setGames] = useState([]);
     useEffect(() => {
-        gameConnectionSingleton.onEvent("GameList", () => {
+        const updateGames = () => {
             setGames(gameConnectionSingleton.client.game_list());
-        });
+        };
+        gameConnectionSingleton.onEvent("GameList", updateGames);
+        gameConnectionSingleton.onEvent("NewGame", updateGames);
     }, []);
     return <div className="inner-content start-page">
         <GameForm />

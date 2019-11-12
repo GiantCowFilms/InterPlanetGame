@@ -28,11 +28,11 @@ impl<S> GameConnection<S>
 where
     S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static,
 {
-    pub fn new(instance: Arc<GameServer>, sink: S) -> Self {
+    pub fn new(instance: Arc<GameServer>, sink: Arc<Mutex<S>>) -> Self {
         GameConnection {
             player: None,
             current_game: None,
-            sink: Arc::new(Mutex::new(sink)),
+            sink: sink,
             instance,
         }
     }
@@ -67,17 +67,18 @@ where
                 //Inside message handlers, always lock sinks first to avoid deadlocks
                 match message_data {
                     MessageType::CreateGame(game_settings) => {
-                        let mut sink = self.sink.lock().unwrap();
-                        let maps = self.instance.map_manager.lock().map_err(|_| "Mutex Poisoned".to_owned())?;
-                        let map = maps.map_by_id(&game_settings.map_id).ok_or_else(|| format!("Map with id \"{}\" not found.", game_settings.map_id))?;
-                        let game = Game::new((*map).clone(),game_settings.config);
-                        let mut games = self.instance.games.write().map_err(|_| "Game state corrupted by poisoned mutex. Please report this bug.".to_owned())?;
-                        let game_id = games.add_game(game);
-                        let seralized = serde_json::to_string(&MessageType::NewGame(GameMetadata {
-                            game_id,
-                            map_id: game_settings.map_id
-                        }));
-                        let _ = sink.start_send(Message::from(seralized.unwrap()));
+                        //let mut sink = self.sink.lock().unwrap();
+                        let game = { 
+                            let maps = self.instance.map_manager.lock().map_err(|_| "Mutex Poisoned".to_owned())?;
+                            let map = maps.map_by_id(&game_settings.map_id).ok_or_else(|| format!("Map with id \"{}\" not found.", game_settings.map_id))?;
+                            Game::new((*map).clone(),game_settings.config)
+                        };
+                        let game_id = self.instance.add_game(game);
+                        // let seralized = serde_json::to_string(&MessageType::NewGame(GameMetadata {
+                        //     game_id,
+                        //     map_id: game_settings.map_id
+                        // }));
+                        // let _ = sink.start_send(Message::from(seralized.unwrap()));
                         Ok(())
                     }
                     MessageType::ExitGame => {
