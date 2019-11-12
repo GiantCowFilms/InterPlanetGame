@@ -203,6 +203,8 @@ impl GameExecutor {
             player.index = self.game.players.len();
             let player_cpy = player.clone();
             self.game.players.push(player);
+            self.event_source
+                .emit_event(GameEvent::Player(Arc::new(player_cpy.clone())), &mut self.game);
             Ok(player_cpy)
         } else {
             Err("Game is already full.".to_owned())
