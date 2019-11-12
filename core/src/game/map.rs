@@ -73,7 +73,7 @@ impl Map {
                 y: planet.y,
                 multiplier: planet.multiplier as f32,
                 value: planet.start_value as f32,
-                possession: possesion?.map(|player| { player.index })
+                possession: possesion?.map(|player| { player.possession })
             })
         }).collect();
 

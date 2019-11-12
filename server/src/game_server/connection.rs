@@ -121,7 +121,7 @@ where
                         let _ = sink.start_send(Message::from(seralized.unwrap()));
                         if let Some(player) = &self.player {
                             let seralized = serde_json::to_string(
-                                &MessageType::Possession(player.index as u32),
+                                &MessageType::Possession(player.possession as u32),
                             );
                             let _ =
                                 sink.start_send(Message::from(seralized.unwrap()));
@@ -142,7 +142,7 @@ where
                         //Replace player to avoid mutexes/refcells and such
                         self.player = Some(Player {
                             name: name_data.name,
-                            index: 0, //Garbag data
+                            possession: 0, //Garbag data
                         });
                         Ok(())
                     }

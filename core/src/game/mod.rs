@@ -17,7 +17,7 @@ cfg_if! {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Player {
-    pub index: usize,
+    pub possession: usize,
     pub name: String,
     // state: PlayerState
 }
@@ -201,7 +201,7 @@ impl GameExecutor {
 
     pub fn add_player(&mut self, mut player: Player) -> Result<Player, String> {
         if self.game.map.planets[0].possession.len() > self.game.players.len() {
-            player.index = self.game.players.len();
+            player.possession = self.game.players.len();
             let player_cpy = player.clone();
             self.game.players.push(player);
             self.event_source
@@ -453,7 +453,7 @@ impl GameExecutor {
             .ok_or_else(|| "Game has not been started.".to_owned())?;
         if galaxy.planets[game_move.from.index]
             .possession
-            .map_or(false, |idx| player.index != idx)
+            .map_or(false, |idx| player.possession != idx)
         {
             Err("Planet not owned by player.".to_owned())
         } else if game_move.from.index == game_move.to.index {
