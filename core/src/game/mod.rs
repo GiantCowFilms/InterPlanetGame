@@ -108,6 +108,7 @@ pub struct GameExecutor {
 
 pub enum GameEvent {
     Player(Arc<Player>),
+    PlayerLeave(Player),
     Move(Move),
     Start,
 }
