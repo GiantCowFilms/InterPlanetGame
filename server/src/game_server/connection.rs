@@ -38,19 +38,24 @@ where
     }
 
     fn handle_game_event(sink: Arc<Mutex<S>>, game: &mut Game, event: &GameEvent) {
-        use ipg_core::game::GameEvent::Move;
         let mut sink = sink.lock().unwrap();
         //let mut executor = executor.lock().unwrap();
         match event {
-            Start => {
+            GameEvent::Start => {
                 let seralized = serde_json::to_string(&MessageType::StartGame).unwrap();
                 sink.start_send(Message::from(seralized));
                 let seralized = serde_json::to_string(&MessageType::Game(game.clone()));
                 let _ = sink.start_send(Message::from(seralized.unwrap()));
             }
-            Move(game_move) => {
-                let seralized =
-                    serde_json::to_string(&MessageType::TimedGameMove(game_move.clone())).unwrap();
+            GameEvent::Move(game_move) => {
+                // let seralized =
+                //     serde_json::to_string(&MessageType::TimedGameMove(game_move.clone())).unwrap();
+                // sink.start_send(Message::from(seralized));
+                let seralized = serde_json::to_string(&MessageType::Game(game.clone()));
+                let _ = sink.start_send(Message::from(seralized.unwrap()));
+            },
+            GameEvent::PlayerLeave(_) | GameEvent::Player(_) => {
+                let seralized = serde_json::to_string(&MessageType::GamePlayers(game.players.clone())).unwrap();
                 sink.start_send(Message::from(seralized));
             }
         }
