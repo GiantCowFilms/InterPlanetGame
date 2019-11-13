@@ -1,4 +1,4 @@
-use crate::game::{Galaxy, Game, GameConfig, Move, map::Map};
+use crate::game::{Galaxy, Game, GameConfig, Move, Player, map::Map};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -63,7 +63,7 @@ pub enum MessageType {
     Game(Game),
     GameState(GameState),
     GameMove(GameMove),
-    GamePlayers(GamePlayers),
+    GamePlayers(Vec<Player>),
     TimedGameMove(Move),
     StartGame,
     ExitGame,
