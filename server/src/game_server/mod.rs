@@ -114,6 +114,7 @@ impl GameServer {
         { 
             instance.connections.lock().unwrap().push(Box::new(sink_mtx.clone()));
         };
+        println!("Connection opened.");
         tokio::spawn_async(async move {
             let mut connection = GameConnection::new(instance.clone(), sink_mtx.clone());
             await!(connection.handle_new_client());
@@ -128,6 +129,8 @@ impl GameServer {
                     // .unwrap();
                 };
             }
-        })
+            connection.handle_client_exit();
+            println!("Connection closed.");
+        });
     }
 }

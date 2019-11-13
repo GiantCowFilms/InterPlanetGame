@@ -212,4 +212,13 @@ where
             let _ = sink.start_send(Message::from(err_msg));
         }
     }
+
+    pub fn handle_client_exit(&mut self) {
+        if let Some(game_executor_mtx) = &self.current_game {
+            let mut game_executor = game_executor_mtx.lock().unwrap();
+            if let Some(player) = &self.player {
+                game_executor.remove_player(&player);
+            }
+        };
+    }
 }
