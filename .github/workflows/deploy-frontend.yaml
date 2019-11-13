@@ -1,0 +1,34 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build Frontend
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 12
+      - name: Install wasm-pack
+        run:  curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -y
+      - name: Install Rustup
+        run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - name: Set Rust Override
+        run: rustup override set nightly-2019-04-20
+        # Needed to prevet wasm-pack from ignoring Cargo.lock
+      - name: build frontend crate
+        run: cargo build -p inter-planet-game --release --target wasm32-unknown-unknown
+      - run: npm install
+      - run: npm run build
+      - name: Create Key File
+        run: touch ~/key_file
+      - name: Save Server Key
+        run: echo "${{ secrets.SERVER_SSH_KEY }}"  > ~/key_file & chmod 400 ~/key_file
+      - name: Upload
+        run: scp -o -r "StrictHostKeyChecking=no" -i ~/key_file target/release/dist github_actions@${{ secrets.SERVER_IP }}:${{ secrets.SERVER_DIRECTORY }}/client
+      
