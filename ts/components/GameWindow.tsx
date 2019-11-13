@@ -8,7 +8,8 @@ interface Props {
 function GameWindow(props: Props) {
     const canvasTop = useRef(null);
     const canvasBottom = useRef(null);
-    const [players,setPlayers] = useState([]);
+    const [players,setPlayersInternal] = useState([]);
+    const setPlayers = () => setPlayersInternal(gameConnectionSingleton.client.get_player_list());
     const [gameStarted, setGameStarted] = useState(false);
     const startGame = () => {
         gameConnectionSingleton.client.start_game();
@@ -43,8 +44,9 @@ function GameWindow(props: Props) {
                 renderStarted = true;
             }
             setGameStarted(true);
-            setPlayers(gameConnectionSingleton.client.get_player_list());
+            setPlayers();
         });
+        gameConnectionSingleton.onEvent("GamePlayers",setPlayers);
     }, [canvasTop, canvasBottom, props.game]);
     return (
         <>

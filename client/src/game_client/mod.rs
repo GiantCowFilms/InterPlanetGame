@@ -1,4 +1,4 @@
-use ipg_core::game::{Game, GameExecutor, Planet, map::Map};
+use ipg_core::game::{Game, GameExecutor, Planet, Player, map::Map};
 use ipg_core::protocol::messages::{
     GameList, GameMetadata, GameMove, GameState, MessageType, SetName,
 };
@@ -17,6 +17,7 @@ pub struct GameClient {
     current_game_state: Option<GameExecutor>,
     current_game: Option<GameMetadata>,
     current_game_render: Option<GameRender>,
+    current_game_players: Option<Vec<Player>>,
     selected_planet: Option<Planet>, //Todo maybe move this somewhere else?
     current_posession_index: Option<u32>,
     socket: WebSocket,
@@ -31,6 +32,7 @@ impl GameClient {
             current_game: None,
             current_game_state: None,
             current_game_render: None,
+            current_game_players: None,
             selected_planet: None,
             current_posession_index: None,
             socket, // on_game_list: Vec::new()
@@ -71,6 +73,14 @@ impl GameClient {
             MessageType::MapList(map_list) => {
                 self.maps = map_list;
                 Some("MapList".to_owned())
+            },
+            MessageType::GamePlayers(players) => {
+                if let Some(executor) = self.current_game_state.as_mut() {
+                    executor.game.players = players;
+                } else {
+                    self.current_game_players = Some(players);
+                };
+                Some("GamePlayers".to_owned())
             }
             _ => None,
         }
@@ -138,7 +148,9 @@ impl GameClient {
 
     pub fn get_player_list(&self) -> Option<js_sys::Array> {
         self.current_game_state.as_ref().map(|state| {
-            state.game.players.iter().map(|k| JsValue::from_serde(k).unwrap()).fold(js_sys::Array::new(),|arr,v| {
+            &state.game.players
+        }).or(self.current_game_players.as_ref()).map(|players| {
+            players.iter().map(|k| JsValue::from_serde(k).unwrap()).fold(js_sys::Array::new(),|arr,v| {
                 arr.push(&v);
                 arr
             })
