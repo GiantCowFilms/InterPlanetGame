@@ -106,6 +106,7 @@ where
                                 .map_err(|_| "Too many players".to_owned())?
                         );
                         let handler_sink = self.sink.clone();
+                        // Subscribe to game state
                         game_executor.event_source.on_event(Box::new(
                             move |event: &GameEvent, game: &mut Game| {
                                 GameConnection::handle_game_event(
@@ -127,6 +128,7 @@ where
                                 sink.start_send(Message::from(seralized.unwrap()));
                         };
                         if game_executor.game.state.is_some() {
+                            // Send game state
                             let seralized = serde_json::to_string(
                                 &MessageType::Game(game_executor.game.clone()),
                             );
@@ -134,9 +136,8 @@ where
                                 sink.start_send(Message::from(seralized.unwrap()));
                         };
                         self.current_game = Some(game_executor_mtx.clone());
-                        // Subscribe to game state
                         Ok(())
-                        //Send game state
+                        
                     }
                     MessageType::SetName(name_data) => {
                         //Replace player to avoid mutexes/refcells and such
