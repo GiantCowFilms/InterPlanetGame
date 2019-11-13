@@ -134,7 +134,14 @@ where
                             );
                             let _ =
                                 sink.start_send(Message::from(seralized.unwrap()));
-                        };
+                        } else {
+                            // Otherwise just send the player list
+                            let seralized = serde_json::to_string(
+                                &MessageType::GamePlayers(game_executor.game.players.clone()),
+                            );
+                            let _ = sink.start_send(Message::from(seralized.unwrap()));
+                        }
+
                         self.current_game = Some(game_executor_mtx.clone());
                         Ok(())
                         
