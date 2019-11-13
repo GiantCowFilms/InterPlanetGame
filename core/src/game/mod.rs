@@ -212,6 +212,15 @@ impl GameExecutor {
         }
     }
 
+    pub fn remove_player(&mut self, player: &Player) {
+        self.game.players.retain(|p| p.possession != player.possession);
+        // We don't update the indecies -- since a player leaving should not suddenly reassign everyone.
+        // Future enhancement would be to find a spectator if available, and use them as a subtitute.
+
+        self.event_source
+            .emit_event(GameEvent::PlayerLeave(player.clone()), &mut self.game);
+    }
+
     pub fn start_game(&mut self) -> Result<(), String> {
         if self.game.state.is_some() {
             Err("Cannot start game, it has already started.".to_owned())
