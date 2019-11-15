@@ -48,6 +48,14 @@ h1:first-child, h2:first-child, h3:first-child, h4:first-child {
     padding-right: 5rem;
 }
 
+.center-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    justify-items: center;
+    align-items: center;
+}
+
 .title {
     font-size: 2.5em;
     line-height: 3.6rem;
@@ -97,4 +105,11 @@ h1:first-child, h2:first-child, h3:first-child, h4:first-child {
     bottom: 1.5em;
     right: 1.5em;
     width: 9em;
+}
+
+.player-name {
+    display: grid;
+    gap: 1em;
+    grid-template-columns: auto;
+    grid-template-rows: repeat(auto);
 }
