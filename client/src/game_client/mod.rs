@@ -66,7 +66,11 @@ impl GameClient {
             MessageType::Game(game) => {
                 match &mut self.current_game_state {
                     Some(exec) => exec.set_game(game),
-                    None => self.current_game_state = Some(GameExecutor::from_game(game)),
+                    None => if let Some(game_metadata) = &self.current_game { 
+                        self.current_game_state = Some(GameExecutor::from_game(game,game_metadata.game_id.clone()))
+                    } else {
+                        panic!("Attempted to load game state when no game is joined!");
+                    },
                 };
                 Some("Game".to_string())
             }
@@ -107,13 +111,14 @@ impl GameClient {
             .and_then(|state| state.game.state.as_ref().map(|s| s.time))
     }
 
-    pub fn enter_game(&self, game_metadata: JsValue) {
+    pub fn enter_game(&mut self, game_metadata: JsValue) {
         if let Ok(game_metadata) =
             game_metadata.into_serde() as Result<GameMetadata, serde_json::Error>
         {
             let message = serde_json::to_string(&MessageType::EnterGame(game_metadata.game_id.to_owned()))
             .unwrap();
             self.socket.send_with_str(message.as_str());
+            self.current_game = Some(game_metadata);
         }
     }
 

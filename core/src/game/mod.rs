@@ -104,6 +104,7 @@ pub struct GameExecutor {
     completed_move_idx: usize,
     // Alternative use VecDeque
     modification_buckets: ModBuckets,
+    pub game_id: String,
 }
 
 pub enum GameEvent {
@@ -176,13 +177,14 @@ impl Move {
 }
 
 impl GameExecutor {
-    pub fn from_game(game: Game) -> GameExecutor {
+    pub fn from_game(game: Game,game_id: String) -> GameExecutor {
         GameExecutor {
             start_time: 0,
             game,
             event_source: GameEventSource::default(),
             completed_move_idx: 0,
             modification_buckets: VecDeque::new(),
+            game_id
         }
     }
 

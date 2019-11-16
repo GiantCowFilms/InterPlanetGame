@@ -44,7 +44,7 @@ impl GameList for HashMap<String, Arc<Mutex<GameExecutor>>> {
             .collect();
         self.insert(
             game_id.clone(),
-            Arc::new(Mutex::new(GameExecutor::from_game(game))),
+            Arc::new(Mutex::new(GameExecutor::from_game(game,game_id.clone()))),
         );
         game_id
     }
