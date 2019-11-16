@@ -107,6 +107,15 @@ impl GameServer {
         };
     }
 
+    pub fn remove_game(&self, game_id: &String) {
+        let mut games = self.games.write().unwrap();
+        games.remove(game_id);
+        let message = Message::from(
+            serde_json::to_string(&MessageType::RemoveGame(game_id.clone())).unwrap(),
+        );
+        self.broadcast(message);
+    }
+
     /// Handles an incoming websocket stream
     /// It will mutate game state based in incoming messages,
     /// and broadcast the messages the client requires.
