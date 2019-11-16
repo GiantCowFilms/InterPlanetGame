@@ -97,10 +97,14 @@ impl GameServer {
                 map_id,
             })).unwrap(),
         );
+        self.broadcast(message);
+        game_id
+    }
+
+    fn broadcast(&self, message: Message) {
         for connection in self.connections.lock().unwrap().iter() {
             connection.lock().unwrap().start_send(message.clone());
         };
-        game_id
     }
 
     /// Handles an incoming websocket stream
