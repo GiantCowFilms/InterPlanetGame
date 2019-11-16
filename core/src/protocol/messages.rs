@@ -68,6 +68,7 @@ pub enum MessageType {
     StartGame,
     ExitGame,
     NewGame(GameMetadata),
+    RemoveGame(String),
     GameList(GameList),
     MapList(HashMap<String,Map>),
     CreateGame(CreateGame),
