@@ -48,6 +48,12 @@ impl GameClient {
                 self.game_list.push(game_metadata);
                 Some("NewGame".to_string())
             }
+            MessageType::RemoveGame(game_id) => {
+                self.game_list.retain(|game_exec| {
+                    return game_exec.game_id != game_id;
+                });
+                Some("GameList".to_string())
+            },
             MessageType::GameList(GameList { games }) => {
                 self.game_list = games;
                 Some("GameList".to_string())
