@@ -226,6 +226,9 @@ where
             if let Some(player) = &self.player {
                 game_executor.remove_player(&player);
             }
+            if game_executor.game.players.len() < 1 {
+                self.instance.remove_game(&game_executor.game_id)
+            }
         };
     }
 }
