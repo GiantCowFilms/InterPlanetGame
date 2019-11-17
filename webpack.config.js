@@ -1,6 +1,6 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-
+const Dotenv = require('dotenv-webpack');
 const dist = path.resolve(__dirname, "dist");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 
@@ -34,6 +34,8 @@ module.exports = {
     contentBase: dist,
   },
   plugins: [
+    new Dotenv(),
+
     new HtmlWebpackPlugin({
       template: 'index.html'
     }),

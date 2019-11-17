@@ -7,7 +7,7 @@ type GameConnection = {
     onEvent: (event: string,callback: () =>void) => void;
 };
 
-export default function createConnection (url: string = "ws://localhost:1234"): GameConnection {
+export default function createConnection (url: string): GameConnection {
     const socket: WebSocket = new WebSocket(url);
     const client: GameClient = make(socket);
     const connection: GameConnection = {
@@ -34,4 +34,4 @@ export default function createConnection (url: string = "ws://localhost:1234"): 
     return connection;
 }
 
-export const gameConnectionSingleton: GameConnection = createConnection();
+export const gameConnectionSingleton: GameConnection = createConnection(process.env.SERVER_URL);

@@ -7,3 +7,5 @@ client/wasm-pack.log
 client/Cargo.lock
 /target
 **/*.rs.bk
+*.env
+!.example.env
