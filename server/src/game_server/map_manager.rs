@@ -16,16 +16,18 @@ impl FileSystemMapManager {
     pub fn new(maps_directory: String) -> FileSystemMapManager {
         let mut maps = HashMap::new();
 
-        if let Ok(entries) = fs::read_dir(maps_directory) {
+        if let Ok(entries) = fs::read_dir(&maps_directory) {
             for entry in entries {
-                let path = entry.expect("Maps directory not found.").path();
+                let path = entry.unwrap_or_else(
+                    |_| panic!("Maps directory {} not found.",maps_directory)
+                ).path();
                 if !path.is_dir() {
                     let map = Map::from_string(fs::read_to_string(path).unwrap().as_str()).unwrap();
                     maps.insert(map.name.clone(), map);
                 }
             }
         } else {
-            panic!("Unable to read maps directory.");
+            panic!("Unable to read maps directory: {}.",maps_directory);
         }
 
         FileSystemMapManager { maps: maps }
