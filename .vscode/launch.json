@@ -15,6 +15,12 @@
             "environment": [{
                 "name": "RUST_BACKTRACE",
                 "value": "1"
+            },{
+                "name": "IPG_MAPS_DIR",
+                "value": "Q:\\Projects\\Development\\2019\\inter-planet-game\\maps"
+            },{
+                "name": "IPG_PORT",
+                "value": "1234"
             }],
             "externalConsole": true,
             "preLaunchTask": "cargo build"
