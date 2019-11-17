@@ -1,0 +1,202 @@
+{
+    "standard": 0.4,
+    "name": "Trio",
+    "size": {
+        "x": 1000,
+        "y": 800
+    },
+    "planets": [
+        {
+            "possession": [
+                0,
+                3,
+                3,
+                3,
+                3,
+                0,
+                0
+            ],
+            "radius": 100,
+            "x": 739,
+            "y": 535,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                0,
+                0
+            ],
+            "radius": 100,
+            "x": 652,
+            "y": 236,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                2,
+                2,
+                2,
+                2,
+                2,
+                0,
+                0
+            ],
+            "radius": 100,
+            "x": 255,
+            "y": 491,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                4,
+                0,
+                4,
+                0,
+                8
+            ],
+            "radius": 50,
+            "x": 259,
+            "y": 302,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                4,
+                0,
+                4,
+                6,
+                6
+            ],
+            "radius": 50,
+            "x": 395,
+            "y": 625,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                4,
+                5,
+                4,
+                7,
+                7
+            ],
+            "radius": 50,
+            "x": 106,
+            "y": 606,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                5,
+                5,
+                5
+            ],
+            "radius": 50,
+            "x": 552,
+            "y": 441,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                4,
+                5,
+                4,
+                4
+            ],
+            "radius": 50,
+            "x": 785,
+            "y": 738,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                4,
+                5,
+                3,
+                3
+            ],
+            "radius": 50,
+            "x": 918,
+            "y": 461,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                5,
+                6,
+                0,
+                0
+            ],
+            "radius": 50,
+            "x": 466,
+            "y": 212,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                4,
+                4,
+                6,
+                1,
+                1
+            ],
+            "radius": 50,
+            "x": 722,
+            "y": 78,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                5,
+                6,
+                2,
+                2
+            ],
+            "radius": 50,
+            "x": 781,
+            "y": 337,
+            "start_value": 10,
+            "multiplier": 1.0
+        }
+    ]
+}
