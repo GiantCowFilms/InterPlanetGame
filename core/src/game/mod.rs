@@ -239,8 +239,11 @@ impl GameExecutor {
 
     fn spawn_ships(planets: &mut Vec<Planet>, elapsed: u32) {
         for planet in planets.iter_mut() {
-            planet.value +=
-                planet.multiplier * planet.radius * elapsed as f32 / TICKS_PER_SHIP as f32;
+            // Neutral planets don't generate troops
+            if planet.possession.is_some() {
+                planet.value +=
+                    planet.multiplier * planet.radius * elapsed as f32 / TICKS_PER_SHIP as f32;
+            }
         }
     }
 
