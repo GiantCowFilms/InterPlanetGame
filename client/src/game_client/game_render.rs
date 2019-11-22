@@ -167,6 +167,7 @@ pub fn create_ship_shader(gl_context: &WebGl2RenderingContext) -> Result<WebGlPr
 }
 
 pub fn render_map(context_2d: &CanvasRenderingContext2d, map: &Map, player_count: usize, width: u32, height: u32) -> Result<(),JsValue> {
+    context_2d.clear_rect(0f64,0f64,width as f64,height as f64);
     let x_ratio = width as f64 / map.size.x as f64;
     let y_ratio = height as f64 / map.size.y as f64;
     let ratio = y_ratio.min(x_ratio);
