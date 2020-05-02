@@ -1,6 +1,6 @@
-# Inter Planet Game
+# Inter Planet Game (WIP)
 
-https://interplanetgame.giantcowfilms.com
+http://interplanetgame.giantcowfilms.com
 
 A fun multi-player game of galaxy conquest!
 
