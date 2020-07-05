@@ -28,7 +28,7 @@ function GameWindow(props: Props) {
         gameConnectionSingleton.client.set_render_target(canvasTop.current, canvasBottom.current);
         // game is implictly started when the first GameState is sent
         let renderStarted = false;
-        gameConnectionSingleton.onEvent("Game", () => {
+        const unHookGameEvent = gameConnectionSingleton.onEvent("Game", () => {
             if(!renderStarted) {
                 const startTime = Date.now();
                 const gameTime = gameConnectionSingleton.client.get_time(); // Warning: nullable
@@ -46,7 +46,11 @@ function GameWindow(props: Props) {
             setGameStarted(true);
             setPlayers();
         });
-        gameConnectionSingleton.onEvent("GamePlayers",setPlayers);
+        const unHookGamePlayersEvent = gameConnectionSingleton.onEvent("GamePlayers",setPlayers);
+        return () => {
+            unHookGameEvent();
+            unHookGamePlayersEvent();
+        };
     }, [canvasTop, canvasBottom, props.game]);
     return (
         <>

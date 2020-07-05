@@ -4,7 +4,7 @@ type GameConnection = {
     client: GameClient;
     socket: WebSocket;
     eventHandlers: Map<string,(() => void)[]>;
-    onEvent: (event: string,callback: () =>void) => void;
+    onEvent: (event: string,callback: () =>void) => () => void;
 };
 
 export default function createConnection (url: string): GameConnection {
@@ -19,6 +19,10 @@ export default function createConnection (url: string): GameConnection {
                 this.eventHandlers.set(event,[]);
             }
             this.eventHandlers.get(event).push(callback);
+            return () => {
+                const events = this.eventHandlers.get(event);
+                events.splice(events.indexOf(callback),1);
+            }
         }
     };
     connection.onEvent.bind(connection);
