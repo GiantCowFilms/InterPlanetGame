@@ -4,9 +4,12 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "type": "shell",
             "label": "cargo build",
-            "type": "cargo",
-            "subcommand": "build",
+            "command": "cargo",
+            "args": [
+                "build"
+            ],
             "problemMatcher": [
                 "$rustc"
             ],
