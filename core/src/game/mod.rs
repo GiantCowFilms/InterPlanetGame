@@ -47,7 +47,7 @@ pub struct Move {
     pub from: Planet,
     pub to: Planet,
     pub armada_size: u32,
-    pub time: u32,
+    pub start_time: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -165,14 +165,14 @@ impl Move {
 
     pub fn end_time(&self) -> u32 {
         let dist = self.dist() + self.from.radius + self.to.radius;
-        (dist / SHIP_SPEED) as u32 + self.time
+        (dist / SHIP_SPEED) as u32 + self.start_time
     }
 
     pub fn first_arrival_time(&self) -> u32 {
         let dist = self.dist() - self.from.radius - self.to.radius;
         // If the planets are overlapping, the distance will be negative.
         // This can result in an overflow therefore it is clamped to 0 avoid crashes.
-        (dist / SHIP_SPEED).max(0f32) as u32 + self.time
+        (dist / SHIP_SPEED).max(0f32) as u32 + self.start_time
     }
 }
 
@@ -254,7 +254,7 @@ impl GameExecutor {
         mod_buckets: &mut ModBuckets,
         game_move: &Move,
     ) {
-        if *time != game_move.time {
+        if *time != game_move.start_time {
             panic!("Moves should only be processed on a game state that matches the move time.");
         }
         planets[game_move.from.index].value -= game_move.armada_size as f32;
@@ -291,9 +291,9 @@ impl GameExecutor {
             .sqrt()
                 - game_move.to.radius;
             // Time of arrival
-            let arrival = (dist / SHIP_SPEED) as u32 + game_move.time;
+            let arrival = (dist / SHIP_SPEED) as u32 + game_move.start_time;
             if first_bucket_time > arrival {
-                panic!("dist: {}, move.time: {}, first_time: {}, first_bucket_time: {}, arrival: {}, ship_pos.x: {}, ship_pos.y: {}",dist,game_move.time,first_time,first_bucket_time,arrival,ship_pos.0,ship_pos.1);
+                panic!("dist: {}, move.time: {}, first_time: {}, first_bucket_time: {}, arrival: {}, ship_pos.x: {}, ship_pos.y: {}",dist,game_move.start_time,first_time,first_bucket_time,arrival,ship_pos.0,ship_pos.1);
             }
             let bucket_idx = (arrival - first_bucket_time) as usize;
             let cap = ((arrival - first_bucket_time) as usize + 1).max(mod_buckets.len());
@@ -397,19 +397,19 @@ impl GameExecutor {
                 .iter()
                 .skip(self.completed_move_idx)
                 .filter(|game_move| {
-                    // >= in first condition might result in double processing moves
-                    game_move.time <= target_time
+                    // Don't process any future moves
+                    game_move.start_time <= target_time
                 });
             for game_move in new_moves {
-                if game_move.time >= galaxy.time {
+                if game_move.start_time >= galaxy.time {
                     GameExecutor::apply_buckets(
                         &mut galaxy.time,
                         &mut galaxy.planets,
                         &mut self.modification_buckets,
-                        game_move.time,
+                        game_move.start_time,
                     );
                 }
-                galaxy.time = game_move.time;
+                galaxy.time = game_move.start_time;
                 if prev_time < galaxy.time {
                     GameExecutor::apply_move_from(
                         &mut galaxy.time,
@@ -450,7 +450,7 @@ impl GameExecutor {
             to: galaxy.planets[to as usize].clone(),
             from: galaxy.planets[from as usize].clone(),
             armada_size: galaxy.planets[from as usize].value as u32 / 2,
-            time,
+            start_time: time,
         })
     }
 
@@ -459,7 +459,7 @@ impl GameExecutor {
     }
 
     pub fn add_move(&mut self, player: &Player, game_move: Move) -> Result<(), String> {
-        self.step_to(game_move.time);
+        self.step_to(game_move.start_time);
         let galaxy = self
             .game
             .state
