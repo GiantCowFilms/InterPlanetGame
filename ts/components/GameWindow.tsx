@@ -30,12 +30,12 @@ function GameWindow(props: Props) {
         let renderStarted = false;
         const unHookGameEvent = gameConnectionSingleton.onEvent("Game", () => {
             if(!renderStarted) {
-                const startTime = Date.now();
-                const gameTime = gameConnectionSingleton.client.get_time(); // Warning: nullable
+                const gameTimeFrames = gameConnectionSingleton.client.get_time(); // warning: nullable
+                const startTimeMilliseconds = Date.now() - (gameTimeFrames * 17);
+                console.log(`Started at: ` + startTimeMilliseconds);
                 const render = () => {
-                    const time = Math.max(~~((Date.now() - startTime - 50)/17) + gameTime, gameTime); // 50 milisecond delay
+                    const time = ~~((Date.now() - startTimeMilliseconds)/17);
                     if (time >= 0) {
-                        console.log(time);
                         gameConnectionSingleton.client.render_game_frame(time);
                     }
                     window.requestAnimationFrame(render);

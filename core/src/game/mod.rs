@@ -262,14 +262,11 @@ impl GameExecutor {
 
     #[inline(never)]
     fn apply_move_mod_buckets(
-        time: &mut u32,
         planets: &mut Vec<Planet>,
         mod_buckets: &mut ModBuckets,
         game_move: &Move,
     ) {
-        if *time != game_move.time {
-            panic!("Moves should only be processed on a game state that matches the move time.");
-        }
+        // This function can run before the move is even processed
         let first_time = game_move.first_arrival_time();
         // Bucket index is offset from the oldest bucket
         let mut first_bucket_time = mod_buckets
@@ -351,6 +348,7 @@ impl GameExecutor {
         {
             mod_buckets.pop_front();
         }
+        // Pull buckets down until we reach the target time
         while !mod_buckets.is_empty()
             && mod_buckets[0]
                 .as_ref()
@@ -359,6 +357,7 @@ impl GameExecutor {
         {
             if let Some(bucket) = mod_buckets.pop_front().and_then(std::convert::identity) {
                 assert!(!(bucket.time < prev_time),"Late bucket application occured: bucket.time: {}, prev_time: {} target_time: {}",bucket.time,prev_time,target_time);
+                // Spawn ships up until the moment of bucket application
                 GameExecutor::spawn_ships(planets, bucket.time - prev_time);
                 prev_time = bucket.time;
                 for (i, planet) in planets.iter_mut().enumerate() {
@@ -408,18 +407,18 @@ impl GameExecutor {
                         &mut self.modification_buckets,
                         game_move.start_time,
                     );
-                }
-                galaxy.time = game_move.start_time;
-                if prev_time < galaxy.time {
-                    GameExecutor::apply_move_from(
-                        &mut galaxy.time,
-                        &mut galaxy.planets,
-                        &mut self.modification_buckets,
-                        game_move,
-                    );
+                    galaxy.time = game_move.start_time;
+
+                    if prev_time < galaxy.time {
+                        GameExecutor::apply_move_from(
+                            &mut galaxy.time,
+                            &mut galaxy.planets,
+                            &mut self.modification_buckets,
+                            game_move,
+                        );
+                    }
                 }
                 GameExecutor::apply_move_mod_buckets(
-                    &mut galaxy.time,
                     &mut galaxy.planets,
                     &mut self.modification_buckets,
                     game_move,

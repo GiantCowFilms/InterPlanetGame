@@ -129,6 +129,12 @@ where
                         };
                         if game_executor.game.state.is_some() {
                             // Send game state
+                            let time = game_executor.get_time();
+                            // Step to the latest time so the client can use it
+                            // to figure out the offset between it and the
+                            // server. This offset does not account for latency,
+                            // which will need to be fixed.
+                            game_executor.step_to(time);
                             let seralized = serde_json::to_string(
                                 &MessageType::Game(game_executor.game.clone()),
                             );
