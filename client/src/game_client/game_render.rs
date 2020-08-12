@@ -299,8 +299,7 @@ impl GameRender {
                 .get_uniform_location(&self.ship_shader, "travel_time")
             {
                 self.gl
-                    .uniform1ui(Some(&travel_time_loc), galaxy.time - game_move.time);
-                log!("Travel time: {}", galaxy.time - game_move.time)
+                    .uniform1ui(Some(&travel_time_loc), galaxy.time - game_move.start_time);
             } else {
                 log!("WARNING: Unable to find uniform travel_time.");
             };

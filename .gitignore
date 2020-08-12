@@ -9,3 +9,4 @@ client/Cargo.lock
 **/*.rs.bk
 *.env
 !.example.env
+*.dev.ps1
