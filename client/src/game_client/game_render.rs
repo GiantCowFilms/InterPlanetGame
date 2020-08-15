@@ -263,7 +263,6 @@ impl GameRender {
     }
 
     pub fn render_ships(&mut self, galaxy: &Galaxy, map: &Map) -> Result<(), String> {
-        log!("render_ships");
         self.gl.cull_face(WebGl2RenderingContext::FRONT_AND_BACK);
         self.gl.viewport(
             0,
@@ -289,8 +288,7 @@ impl GameRender {
             self.completed_move_index += 1;
         }
         self.move_renders
-            .retain(|move_render| move_render.game_move.end_time() > galaxy.time);
-        log!("{}", self.move_renders.len());
+            .retain(|move_render| move_render.game_move.end_time() > galaxy.time);        
         for move_render in self.move_renders.iter_mut() {
             let game_move = &move_render.game_move;
             // Uniforms
@@ -474,6 +472,7 @@ impl MoveRender {
 
 impl Drop for MoveRender {
     fn drop(&mut self) {
+        log!("dropping move at {}", self.game_move.start_time);
         //Cleanup
         self.gl.delete_buffer(Some(&self.positions_vbo));
         //self.gl.delete_buffer(start_times_vbo.as_ref());

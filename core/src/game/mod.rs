@@ -83,7 +83,7 @@ impl Game {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 struct PlanetDelta {
     magnitude: u32,
     possession: u32,

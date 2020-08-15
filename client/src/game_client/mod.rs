@@ -6,7 +6,7 @@ use js_sys;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{HtmlCanvasElement, WebSocket, CanvasRenderingContext2d};
+use web_sys::{HtmlCanvasElement, WebSocket, CanvasRenderingContext2d , Window};
 mod game_render;
 use self::game_render::GameRender;
 
@@ -61,6 +61,7 @@ impl GameClient {
             MessageType::GameState(GameState { galaxy }) => {
                 if let Some(ref mut exec) = self.current_game_state {
                     // TODO move this into setter
+                    log!("galaxy state with time = {}",galaxy.time);
                     exec.game.state = Some(galaxy);
                 }
                 Some("GameState".to_string())
@@ -91,7 +92,10 @@ impl GameClient {
                     self.current_game_players = Some(players);
                 };
                 Some("GamePlayers".to_owned())
-            }
+            },
+            MessageType::Time(time) => {
+                Some("Time".to_owned())
+            },
             _ => None,
         }
     }
@@ -111,10 +115,25 @@ impl GameClient {
         self.socket.send_with_str(message.as_str());
     }
 
+    /// Returns the current game time
     pub fn get_time(&self) -> Option<u32> {
         self.current_game_state
             .as_ref()
             .and_then(|state| state.game.state.as_ref().map(|s| s.time))
+    }
+
+    // pub fn get_start_time(&self) -> Option<u32> {
+    //     self.current_game_state
+    //         .as_ref()
+    //         .and_then(|state| state.game.state.as_ref().map(|s| s.start_time))
+    // }
+
+    pub fn get_clock_offset(&self) {
+        let window = web_sys::window().expect("Should have a window in this context");
+        let time = window.performance().expect("Unable to access performance").now() as u128;
+        let message = serde_json::to_string(&MessageType::Time(0))
+        .unwrap();
+        self.socket.send_with_str(message.as_str());
     }
 
     pub fn enter_game(&mut self, game_metadata: JsValue) {

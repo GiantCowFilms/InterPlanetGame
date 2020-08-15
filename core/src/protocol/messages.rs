@@ -73,4 +73,5 @@ pub enum MessageType {
     MapList(HashMap<String,Map>),
     CreateGame(CreateGame),
     Error(String),
+    Time(u128),
 }

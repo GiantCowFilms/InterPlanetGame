@@ -182,6 +182,21 @@ where
                                 game_executor.create_move(game_move.from, game_move.to)?;
                             game_executor.add_move(self.player.as_ref().unwrap(), timed_move)
                         }),
+                    MessageType::Time(_time) => {
+                        // Allows the client to get the server's clock time so
+                        // they can compute an offset between the server +
+                        // latency and their own clock.
+                        use std::time::SystemTime;
+                        let time = SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis();
+                        let mut sink = self.sink.lock().unwrap();
+                        let _ = sink.start_send(Message::from(serde_json::to_string(
+                            &MessageType::Time(time)
+                        ).unwrap()));
+                        Ok(())
+                    }
                     _ => Err("The provided message type was not found.".to_owned()),
                 }
             }();

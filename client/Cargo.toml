@@ -51,6 +51,7 @@ features = [
   "WebGlShader",
   "Node",
   "Window",
+  "Performance",
   "console",
   "WebSocket"
 ]
