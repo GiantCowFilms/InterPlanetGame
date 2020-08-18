@@ -24,9 +24,7 @@ jobs:
     - name: Stop Server
       run: ssh -o "StrictHostKeyChecking=no" -i ~/key_file -t "sudo systemctl stop ipg_server.service"
     - name: Upload
-      run: scp -o "StrictHostKeyChecking=no" -i ~/key_file
-      target/release/ipg_server github_actions@${{ secrets.SERVER_IP }}:${{
-      secrets.SERVER_DIRECTORY }}/server
+      run: scp -o "StrictHostKeyChecking=no" -i ~/key_file target/release/ipg_server github_actions@${{ secrets.SERVER_IP }}:${{secrets.SERVER_DIRECTORY }}/server
     - name: Start Server
       run: ssh -o "StrictHostKeyChecking=no" -i ~/key_file -t "sudo systemctl start ipg_server.service"
   
