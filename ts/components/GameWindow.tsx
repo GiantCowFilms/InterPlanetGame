@@ -24,8 +24,7 @@ function GameWindow(props: Props) {
         gameConnectionSingleton.client.mouse_event(x, y);
     }
     useEffect(() => {
-        gameConnectionSingleton.client.enter_game(props.game);
-        gameConnectionSingleton.client.set_render_target(canvasTop.current, canvasBottom.current);
+        gameConnectionSingleton.client.enter_game(props.game, canvasTop.current, canvasBottom.current);
         // game is implictly started when the first GameState is sent
         let renderStarted = false;
         const unHookGameEvent = gameConnectionSingleton.onEvent("Game", () => {

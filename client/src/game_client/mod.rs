@@ -1,4 +1,4 @@
-use ipg_core::game::{Game, GameExecutor, Planet, Player, map::Map};
+use ipg_core::game::{map::Map, GameExecutor, Planet, Player};
 use ipg_core::protocol::messages::{
     GameList, GameMetadata, GameMove, GameState, MessageType, SetName,
 };
@@ -6,22 +6,52 @@ use js_sys;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{HtmlCanvasElement, WebSocket, CanvasRenderingContext2d , Window};
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, WebSocket};
 mod game_render;
 use self::game_render::GameRender;
+
+struct JoinedGame {
+    exec: GameExecutor,
+    metadata: GameMetadata,
+    render: GameRender,
+    players: Vec<Player>,
+    possesion_index: u32,
+    selected_planet: Option<Planet>,
+}
+struct Waiting {
+    metadata: GameMetadata,
+    render: GameRender,
+    possesion_index: Option<u32>,
+    players: Option<Vec<Player>>,
+}
+
+enum ActiveGame {
+    Waiting(Waiting),
+    Joined(JoinedGame),
+    None,
+}
+
+impl ActiveGame {
+    pub fn joined(&self) -> Option<&JoinedGame> {
+        match self {
+            ActiveGame::Joined(game) => Some(game),
+            _ => None,
+        }
+    }
+    pub fn joined_mut(&mut self) -> Option<&mut JoinedGame> {
+        match self {
+            ActiveGame::Joined(game) => Some(game),
+            _ => None,
+        }
+    }
+}
 
 #[wasm_bindgen]
 pub struct GameClient {
     game_list: Vec<GameMetadata>,
-    // on_game_list: Vec<Box<Fn () -> () + 'static>>,
-    current_game_state: Option<GameExecutor>,
-    current_game: Option<GameMetadata>,
-    current_game_render: Option<GameRender>,
-    current_game_players: Option<Vec<Player>>,
-    selected_planet: Option<Planet>, //Todo maybe move this somewhere else?
-    current_posession_index: Option<u32>,
+    current_game: ActiveGame,
     socket: WebSocket,
-    maps: HashMap<String,Map>
+    maps: HashMap<String, Map>,
 }
 
 #[wasm_bindgen]
@@ -29,14 +59,9 @@ impl GameClient {
     pub fn new(socket: WebSocket) -> GameClient {
         GameClient {
             game_list: Vec::new(),
-            current_game: None,
-            current_game_state: None,
-            current_game_render: None,
-            current_game_players: None,
-            selected_planet: None,
-            current_posession_index: None,
+            current_game: ActiveGame::None,
             socket, // on_game_list: Vec::new()
-            maps: HashMap::new()
+            maps: HashMap::new(),
         }
     }
 
@@ -53,50 +78,92 @@ impl GameClient {
                     return game_exec.game_id != game_id;
                 });
                 Some("GameList".to_string())
-            },
+            }
             MessageType::GameList(GameList { games }) => {
                 self.game_list = games;
                 Some("GameList".to_string())
             }
-            MessageType::GameState(GameState { galaxy }) => {
-                if let Some(ref mut exec) = self.current_game_state {
-                    // TODO move this into setter
-                    log!("galaxy state with time = {}",galaxy.time);
-                    exec.game.state = Some(galaxy);
-                }
-                Some("GameState".to_string())
-            }
-            MessageType::Possession(possession) => {
-                self.current_posession_index = Some(possession);
-                Some("Possesion".to_string())
-            }
-            MessageType::Game(game) => {
-                match &mut self.current_game_state {
-                    Some(exec) => exec.set_game(game),
-                    None => if let Some(game_metadata) = &self.current_game { 
-                        self.current_game_state = Some(GameExecutor::from_game(game,game_metadata.game_id.clone()))
-                    } else {
-                        panic!("Attempted to load game state when no game is joined!");
-                    },
-                };
-                Some("Game".to_string())
-            }
+            MessageType::Time(time) => Some("Time".to_owned()),
             MessageType::MapList(map_list) => {
                 self.maps = map_list;
                 Some("MapList".to_owned())
-            },
-            MessageType::GamePlayers(players) => {
-                if let Some(executor) = self.current_game_state.as_mut() {
-                    executor.game.players = players;
-                } else {
-                    self.current_game_players = Some(players);
-                };
-                Some("GamePlayers".to_owned())
-            },
-            MessageType::Time(time) => {
-                Some("Time".to_owned())
-            },
-            _ => None,
+            }
+            message => {
+                match self.current_game {
+                    ActiveGame::Joined(ref mut current) => {
+                        match message {
+                            MessageType::GameState(GameState { galaxy }) => {
+                                // TODO move this into setter
+                                log!("galaxy state with time = {}", galaxy.time);
+                                current.exec.game.state = Some(galaxy);
+                                Some("GameState".to_string())
+                            }
+                            MessageType::Possession(possession) => {
+                                current.possesion_index = possession;
+                                Some("Possesion".to_string())
+                            }
+                            MessageType::Game(game) => {
+                                current.exec.set_game(game);
+                                Some("Game".to_string())
+                            }
+                            MessageType::GamePlayers(players) => {
+                                current.exec.game.players = players;
+                                Some("GamePlayers".to_owned())
+                            }
+                            _ => None,
+                        }
+                    }
+                    ActiveGame::Waiting(ref mut waiting) => {
+                        match message {
+                            MessageType::Game(game) => {
+                                let mut owned =
+                                    std::mem::replace(&mut self.current_game, ActiveGame::None);
+                                let waiting = if let ActiveGame::Waiting(mut waiting) = owned {
+                                    waiting
+                                } else {
+                                    unreachable!();
+                                };
+                                self.current_game = ActiveGame::Joined(JoinedGame {
+                                    exec: GameExecutor::from_game(
+                                        game,
+                                        waiting.metadata.game_id.clone(),
+                                    ),
+                                    players: waiting
+                                        .players
+                                        .expect("Cannot start game until players have been sent"),
+                                    metadata: waiting.metadata,
+                                    render: waiting.render,
+                                    possesion_index: waiting.possesion_index.expect(
+                                        "Cannot start game until posession index has been sent",
+                                    ),
+                                    selected_planet: None,
+                                });
+                                Some("Game".to_string())
+                            }
+                            _ => {
+                                match message {
+                                    MessageType::Possession(possession) => {
+                                        waiting.possesion_index = Some(possession);
+                                        Some("Possesion".to_string())
+                                    }
+                                    MessageType::GamePlayers(players) => {
+                                        waiting.players = Some(players);
+                                        Some("GamePlayers".to_owned())
+                                    }
+                                    _ => {
+                                        // We should only get here for messages which
+                                        // are meant to be handled by the Joining state.
+                                        panic!("recieved game state while joining, or standard message handler is missing.");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    ActiveGame::None => {
+                        panic!("recieved game state message while outside of game!");
+                    }
+                }
+            }
         }
     }
 
@@ -117,9 +184,10 @@ impl GameClient {
 
     /// Returns the current game time
     pub fn get_time(&self) -> Option<u32> {
-        self.current_game_state
+        self.current_game
+            .joined()
             .as_ref()
-            .and_then(|state| state.game.state.as_ref().map(|s| s.time))
+            .and_then(|joined| joined.exec.game.state.as_ref().map(|s| s.time))
     }
 
     // pub fn get_start_time(&self) -> Option<u32> {
@@ -130,21 +198,36 @@ impl GameClient {
 
     pub fn get_clock_offset(&self) {
         let window = web_sys::window().expect("Should have a window in this context");
-        let time = window.performance().expect("Unable to access performance").now() as u128;
-        let message = serde_json::to_string(&MessageType::Time(0))
-        .unwrap();
+        let time = window
+            .performance()
+            .expect("Unable to access performance")
+            .now() as u128;
+        let message = serde_json::to_string(&MessageType::Time(0)).unwrap();
         self.socket.send_with_str(message.as_str());
     }
 
-    pub fn enter_game(&mut self, game_metadata: JsValue) {
+    pub fn enter_game(
+        &mut self,
+        game_metadata: JsValue,
+        // HTML pointers needed to render the game
+        canvas_top: HtmlCanvasElement,
+        canvas_bottom: HtmlCanvasElement,
+    ) -> Result<(), JsValue> {
         if let Ok(game_metadata) =
             game_metadata.into_serde() as Result<GameMetadata, serde_json::Error>
         {
-            let message = serde_json::to_string(&MessageType::EnterGame(game_metadata.game_id.to_owned()))
-            .unwrap();
+            let message =
+                serde_json::to_string(&MessageType::EnterGame(game_metadata.game_id.to_owned()))
+                    .unwrap();
             self.socket.send_with_str(message.as_str());
-            self.current_game = Some(game_metadata);
+            self.current_game = ActiveGame::Waiting(Waiting {
+                metadata: game_metadata,
+                players: None,
+                possesion_index: None,
+                render: GameRender::new(canvas_top, canvas_bottom)?,
+            });
         }
+        Ok(())
     }
 
     pub fn start_game(&self) -> Result<(), JsValue> {
@@ -157,84 +240,114 @@ impl GameClient {
         canvas_top: HtmlCanvasElement,
         canvas_bottom: HtmlCanvasElement,
     ) -> Result<(), JsValue> {
-        self.current_game_render = Some(GameRender::new(canvas_top, canvas_bottom)?);
+        match self.current_game {
+            ActiveGame::Joined(ref mut game) => {
+                game.render = GameRender::new(canvas_top, canvas_bottom)?;
+            }
+            ActiveGame::Waiting(ref mut waiting) => {
+                waiting.render = GameRender::new(canvas_top, canvas_bottom)?;
+            }
+            _ => (),
+        }
         Ok(())
     }
 
-    pub fn preview_game(&self, canvas: &HtmlCanvasElement, map_id: String) -> Result<(),JsValue> {
-        let ctx_2d = canvas.get_context("2d")?.expect("Unwrap 2d context")
+    pub fn preview_game(&self, canvas: &HtmlCanvasElement, map_id: String) -> Result<(), JsValue> {
+        let ctx_2d = canvas
+            .get_context("2d")?
+            .expect("Unwrap 2d context")
             .dyn_into::<CanvasRenderingContext2d>()?;
-        let map = self.maps.get(&map_id).ok_or(format!("Map {} not found.",map_id))?;
-        self::game_render::render_map(&ctx_2d,map,2,canvas.width(),canvas.height());
+        let map = self
+            .maps
+            .get(&map_id)
+            .ok_or(format!("Map {} not found.", map_id))?;
+        self::game_render::render_map(&ctx_2d, map, 2, canvas.width(), canvas.height());
         Ok(())
     }
 
     pub fn get_maps(&self) -> js_sys::Array {
-        self.maps.keys().map(|k| JsValue::from(k)).fold(js_sys::Array::new(),|arr,v| {
-            arr.push(&v);
-            arr
-        })
-    }
-
-    pub fn get_player_list(&self) -> Option<js_sys::Array> {
-        self.current_game_state.as_ref().map(|state| {
-            &state.game.players
-        }).or(self.current_game_players.as_ref()).map(|players| {
-            players.iter().map(|k| JsValue::from_serde(k).unwrap()).fold(js_sys::Array::new(),|arr,v| {
+        self.maps
+            .keys()
+            .map(|k| JsValue::from(k))
+            .fold(js_sys::Array::new(), |arr, v| {
                 arr.push(&v);
                 arr
             })
+    }
+
+    pub fn get_player_list(&self) -> Option<js_sys::Array> {
+        match &self.current_game {
+            ActiveGame::Joined(current) => Some(&current.exec.game.players),
+            ActiveGame::Waiting(Waiting { players, .. }) => players.as_ref(),
+            _ => None,
+        }
+        .map(|players| {
+            players
+                .iter()
+                .map(|k| JsValue::from_serde(k).unwrap())
+                .fold(js_sys::Array::new(), |arr, v| {
+                    arr.push(&v);
+                    arr
+                })
         })
     }
 
     pub fn render_game_frame(&mut self, mut time: u32) -> Result<(), JsValue> {
-        let exec = self
-            .current_game_state
-            .as_mut()
-            .ok_or("No game state loaded.")
-            .map_err(|err| JsValue::from(err))?;
-        if let Some(ref galaxy) = exec.game.state {
-            // temprorary in lieu of proper sync
-            time = galaxy.time.max(time);
-            if time < galaxy.time {
-                return Err(JsValue::from("Cannot render frames from the past."));
+        if let ActiveGame::Joined(current) = &mut self.current_game {
+            if let Some(ref galaxy) = current.exec.game.state {
+                // temprorary in lieu of proper sync
+                time = galaxy.time.max(time);
+                if time < galaxy.time {
+                    return Err(JsValue::from("Cannot render frames from the past."));
+                };
+                current.exec.step_to(time);
+            }
+            if let ActiveGame::Joined(current) = &mut self.current_game {
+                current.render.render_galaxy(&current.exec.game)?;
             };
-            exec.step_to(time);
+            Ok(())
+        } else {
+            Err("No game state loaded.".into())
         }
-        if let Some(render) = &mut self.current_game_render {
-            render.render_galaxy(&exec.game)?;
-        };
-        Ok(())
     }
 
     pub fn mouse_event(&mut self, x: f32, y: f32) -> Result<(), JsValue> {
-        let galaxy = self
-            .current_game_state
-            .as_ref()
-            .and_then(|exec| exec.game.state.as_ref())
-            .ok_or("No game state loaded.")
-            .map_err(|err| JsValue::from(err))?;
-        let mut selected_planet = None;
-        for planet in &galaxy.planets {
-            if planet.radius.powf(2f32)
-                > (planet.x as f32 - x).powf(2f32) + (planet.y as f32 - y).powf(2f32)
-            {
-                selected_planet = Some(planet);
-                break;
+        if let ActiveGame::Joined(ref game) = self.current_game {
+            let galaxy = game
+                .exec
+                .game
+                .state
+                .as_ref()
+                .ok_or("No game state loaded.")
+                .map_err(|err| JsValue::from(err))?;
+            let mut selected_planet = None;
+            for planet in &galaxy.planets {
+                if planet.radius.powf(2f32)
+                    > (planet.x as f32 - x).powf(2f32) + (planet.y as f32 - y).powf(2f32)
+                {
+                    selected_planet = Some(planet);
+                    break;
+                }
             }
-        }
-        format!("{}", selected_planet.is_none());
-        if let Some(selected_planet) = selected_planet {
-            if let Some(source_planet) = &self.selected_planet {
-                self.make_move(&source_planet, selected_planet);
-                self.selected_planet = None;
-            } else if selected_planet
-                .possession
-                .map(|p| Some(p as u32) == self.current_posession_index)
-                .unwrap_or(false)
-            {
-                self.selected_planet = Some(selected_planet.clone());
-            }
+            if let Some(selected_planet) = selected_planet {
+                let mut new_selection = if let Some(source_planet) = &game.selected_planet {
+                    self.make_move(&source_planet, selected_planet);
+                    if let ActiveGame::Joined(ref mut game) = self.current_game {
+                        game.selected_planet = None
+                    }
+                } else if selected_planet
+                    .possession
+                    .map(|p| p as u32 == game.possesion_index)
+                    .unwrap_or(false)
+                {
+                    let new_selection = selected_planet.clone();
+                    if let ActiveGame::Joined(ref mut game) = self.current_game {
+                        game.selected_planet = Some(new_selection)
+                    }
+                };
+            };
+        } else {
+            return Err(Into::<JsValue>::into("not currently in a game"));
         }
         Ok(())
     }
