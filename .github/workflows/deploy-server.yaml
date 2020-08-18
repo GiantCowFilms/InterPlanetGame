@@ -22,9 +22,9 @@ jobs:
     # - name: Create Directory
     #   run: ssh github_actions@${{ secrets.SERVER_IP }} -o "StrictHostKeyChecking=no" -i ~/key_file -t "mkdir -p ${{ secrets.SERVER_DIRECTORY }}/server"
     - name: Stop Server
-      run: ssh -o "StrictHostKeyChecking=no" -i ~/key_file -t "sudo systemctl stop ipg_server.service"
+      run: ssh github_actions@${{ secrets.SERVER_IP }}  -o "StrictHostKeyChecking=no" -i ~/key_file -t "sudo systemctl stop ipg_server.service"
     - name: Upload
       run: scp -o "StrictHostKeyChecking=no" -i ~/key_file target/release/ipg_server github_actions@${{ secrets.SERVER_IP }}:${{secrets.SERVER_DIRECTORY }}/server
     - name: Start Server
-      run: ssh -o "StrictHostKeyChecking=no" -i ~/key_file -t "sudo systemctl start ipg_server.service"
+      run: ssh github_actions@${{ secrets.SERVER_IP }}  -o "StrictHostKeyChecking=no" -i ~/key_file -t "sudo systemctl start ipg_server.service"
   
