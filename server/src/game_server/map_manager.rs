@@ -5,7 +5,7 @@ use std::fs;
 pub trait MapManager {
     fn map_ids(&self) -> Vec<String>;
     fn map_by_id(&self, map_id: &String) -> Option<&Map>;
-    fn maps(&self) -> HashMap<String,Map>;
+    fn maps(&self) -> HashMap<String, Map>;
 }
 
 pub struct FileSystemMapManager {
@@ -18,16 +18,16 @@ impl FileSystemMapManager {
 
         if let Ok(entries) = fs::read_dir(&maps_directory) {
             for entry in entries {
-                let path = entry.unwrap_or_else(
-                    |_| panic!("Maps directory {} not found.",maps_directory)
-                ).path();
+                let path = entry
+                    .unwrap_or_else(|_| panic!("Maps directory {} not found.", maps_directory))
+                    .path();
                 if !path.is_dir() {
                     let map = Map::from_string(fs::read_to_string(path).unwrap().as_str()).unwrap();
                     maps.insert(map.name.clone(), map);
                 }
             }
         } else {
-            panic!("Unable to read maps directory: {}.",maps_directory);
+            panic!("Unable to read maps directory: {}.", maps_directory);
         }
 
         FileSystemMapManager { maps: maps }
@@ -43,7 +43,7 @@ impl MapManager for FileSystemMapManager {
         self.maps.get(map_id)
     }
 
-    fn maps(&self) -> HashMap<String,Map> {
+    fn maps(&self) -> HashMap<String, Map> {
         self.maps.clone()
     }
 }

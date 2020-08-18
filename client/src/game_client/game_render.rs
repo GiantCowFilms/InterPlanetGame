@@ -1,9 +1,8 @@
-use ipg_core::game::{map::Map, Galaxy, Game, Move, SHIP_SPEED};
+use ipg_core::game::{map::Map, Galaxy, Game, Move};
 use std::f64::consts::PI;
 use std::rc::Rc;
 use wasm_bindgen::{JsCast, JsValue};
-use wasm_bindgen::prelude::*;
-use web_sys::console;
+// use wasm_bindgen::prelude::*;
 use web_sys::{
     CanvasRenderingContext2d, HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader,
 };
@@ -166,8 +165,14 @@ pub fn create_ship_shader(gl_context: &WebGl2RenderingContext) -> Result<WebGlPr
     Ok(program)
 }
 
-pub fn render_map(context_2d: &CanvasRenderingContext2d, map: &Map, player_count: usize, width: u32, height: u32) -> Result<(),JsValue> {
-    context_2d.clear_rect(0f64,0f64,width as f64,height as f64);
+pub fn render_map(
+    context_2d: &CanvasRenderingContext2d,
+    map: &Map,
+    player_count: usize,
+    width: u32,
+    height: u32,
+) -> Result<(), JsValue> {
+    context_2d.clear_rect(0f64, 0f64, width as f64, height as f64);
     let x_ratio = width as f64 / map.size.x as f64;
     let y_ratio = height as f64 / map.size.y as f64;
     let ratio = y_ratio.min(x_ratio);
@@ -193,7 +198,7 @@ pub fn render_map(context_2d: &CanvasRenderingContext2d, map: &Map, player_count
             planet.x as f64 * ratio,
             planet.y as f64 * ratio,
         )?;
-    };
+    }
     Ok(())
 }
 
@@ -256,7 +261,13 @@ impl GameRender {
                 self.render_ships(state, &game.map)?;
             }
             None => {
-                render_map(&self.context_2d,&game.map,game.players.len(),game.map.size.x,game.map.size.y)?;
+                render_map(
+                    &self.context_2d,
+                    &game.map,
+                    game.players.len(),
+                    game.map.size.x,
+                    game.map.size.y,
+                )?;
             }
         };
         Ok(())
@@ -288,7 +299,7 @@ impl GameRender {
             self.completed_move_index += 1;
         }
         self.move_renders
-            .retain(|move_render| move_render.game_move.end_time() > galaxy.time);        
+            .retain(|move_render| move_render.game_move.end_time() > galaxy.time);
         for move_render in self.move_renders.iter_mut() {
             let game_move = &move_render.game_move;
             // Uniforms
@@ -337,15 +348,15 @@ impl GameRender {
                 log!("WARNING: Unable to find uniform from_radius.");
             };
 
-            move_render.render(galaxy)?;
+            move_render.render()?;
         }
         Ok(())
     }
 }
 
 static SHIP_START_POS: u32 = 1;
-static SHIP_START_TIME: u32 = 2;
-static SHIP_TRAVEL_TIME: u32 = 2;
+// static SHIP_START_TIME: u32 = 2;
+// static SHIP_TRAVEL_TIME: u32 = 2;
 static SHIP_VERTS: u32 = 0;
 
 pub struct MoveRender {
@@ -423,7 +434,7 @@ impl MoveRender {
         })
     }
 
-    pub fn render(&self, galaxy: &Galaxy) -> Result<(), String> {
+    pub fn render(&self) -> Result<(), String> {
         self.gl.bind_buffer(
             WebGl2RenderingContext::ARRAY_BUFFER,
             Some(&self.positions_vbo),

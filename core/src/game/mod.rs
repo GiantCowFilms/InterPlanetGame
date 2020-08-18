@@ -1,11 +1,9 @@
 pub mod map;
 use rand::Rng;
-use rand::RngCore;
 use rand_xoshiro::rand_core::SeedableRng;
 use rand_xoshiro::Xoshiro128StarStar;
 use std::collections::VecDeque;
 use std::f32::consts::PI;
-use std::future::Future;
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -83,7 +81,7 @@ impl Game {
     }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 struct PlanetDelta {
     magnitude: u32,
     possession: u32,
@@ -177,14 +175,14 @@ impl Move {
 }
 
 impl GameExecutor {
-    pub fn from_game(game: Game,game_id: String) -> GameExecutor {
+    pub fn from_game(game: Game, game_id: String) -> GameExecutor {
         GameExecutor {
             start_time: 0,
             game,
             event_source: GameEventSource::default(),
             completed_move_idx: 0,
             modification_buckets: VecDeque::new(),
-            game_id
+            game_id,
         }
     }
 
@@ -206,8 +204,10 @@ impl GameExecutor {
             player.possession = self.game.players.len();
             let player_cpy = player.clone();
             self.game.players.push(player);
-            self.event_source
-                .emit_event(GameEvent::Player(Arc::new(player_cpy.clone())), &mut self.game);
+            self.event_source.emit_event(
+                GameEvent::Player(Arc::new(player_cpy.clone())),
+                &mut self.game,
+            );
             Ok(player_cpy)
         } else {
             Err("Game is already full.".to_owned())
@@ -215,7 +215,9 @@ impl GameExecutor {
     }
 
     pub fn remove_player(&mut self, player: &Player) {
-        self.game.players.retain(|p| p.possession != player.possession);
+        self.game
+            .players
+            .retain(|p| p.possession != player.possession);
         // We don't update the indecies -- since a player leaving should not suddenly reassign everyone.
         // Future enhancement would be to find a spectator if available, and use them as a subtitute.
 
@@ -248,12 +250,7 @@ impl GameExecutor {
     }
 
     #[inline(never)]
-    fn apply_move_from(
-        time: &mut u32,
-        planets: &mut Vec<Planet>,
-        mod_buckets: &mut ModBuckets,
-        game_move: &Move,
-    ) {
+    fn apply_move_from(time: &mut u32, planets: &mut Vec<Planet>, game_move: &Move) {
         if *time != game_move.start_time {
             panic!("Moves should only be processed on a game state that matches the move time.");
         }
@@ -413,7 +410,6 @@ impl GameExecutor {
                         GameExecutor::apply_move_from(
                             &mut galaxy.time,
                             &mut galaxy.planets,
-                            &mut self.modification_buckets,
                             game_move,
                         );
                     }
@@ -472,12 +468,7 @@ impl GameExecutor {
         } else if game_move.from.index == game_move.to.index {
             Err("Planet cannot move to itself.".to_owned())
         } else {
-            GameExecutor::apply_move_from(
-                &mut galaxy.time,
-                &mut galaxy.planets,
-                &mut self.modification_buckets,
-                &game_move,
-            );
+            GameExecutor::apply_move_from(&mut galaxy.time, &mut galaxy.planets, &game_move);
             galaxy.moves.push(game_move.clone());
             self.event_source
                 .emit_event(GameEvent::Move(game_move), &mut self.game);

@@ -1,5 +1,4 @@
-use crate::game::{Galaxy, Game, GameConfig, Move, Player, map::Map};
-use serde::{Deserialize, Serialize};
+use crate::game::{map::Map, Galaxy, Game, GameConfig, Move, Player};
 use std::collections::HashMap;
 
 cfg_if! {
@@ -34,7 +33,7 @@ pub struct CreateGame {
 #[derive(Deserialize, Serialize)]
 pub struct GameMetadata {
     pub game_id: String,
-    pub map_id: String
+    pub map_id: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -70,7 +69,7 @@ pub enum MessageType {
     NewGame(GameMetadata),
     RemoveGame(String),
     GameList(GameList),
-    MapList(HashMap<String,Map>),
+    MapList(HashMap<String, Map>),
     CreateGame(CreateGame),
     Error(String),
     Time(u128),

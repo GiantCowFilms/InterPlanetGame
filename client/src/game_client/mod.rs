@@ -12,9 +12,9 @@ use self::game_render::GameRender;
 
 struct JoinedGame {
     exec: GameExecutor,
+    #[allow(unused)]
     metadata: GameMetadata,
     render: GameRender,
-    players: Vec<Player>,
     possesion_index: u32,
     selected_planet: Option<Planet>,
 }
@@ -38,6 +38,7 @@ impl ActiveGame {
             _ => None,
         }
     }
+    #[allow(unused)]
     pub fn joined_mut(&mut self) -> Option<&mut JoinedGame> {
         match self {
             ActiveGame::Joined(game) => Some(game),
@@ -83,7 +84,7 @@ impl GameClient {
                 self.game_list = games;
                 Some("GameList".to_string())
             }
-            MessageType::Time(time) => Some("Time".to_owned()),
+            MessageType::Time(_time) => Some("Time".to_owned()),
             MessageType::MapList(map_list) => {
                 self.maps = map_list;
                 Some("MapList".to_owned())
@@ -116,9 +117,9 @@ impl GameClient {
                     ActiveGame::Waiting(ref mut waiting) => {
                         match message {
                             MessageType::Game(game) => {
-                                let mut owned =
+                                let owned =
                                     std::mem::replace(&mut self.current_game, ActiveGame::None);
-                                let waiting = if let ActiveGame::Waiting(mut waiting) = owned {
+                                let waiting = if let ActiveGame::Waiting(waiting) = owned {
                                     waiting
                                 } else {
                                     unreachable!();
@@ -128,9 +129,6 @@ impl GameClient {
                                         game,
                                         waiting.metadata.game_id.clone(),
                                     ),
-                                    players: waiting
-                                        .players
-                                        .expect("Cannot start game until players have been sent"),
                                     metadata: waiting.metadata,
                                     render: waiting.render,
                                     possesion_index: waiting.possesion_index.expect(
@@ -179,7 +177,7 @@ impl GameClient {
 
     pub fn set_name(&self, name: String) {
         let message = serde_json::to_string(&MessageType::SetName(SetName { name })).unwrap();
-        self.socket.send_with_str(message.as_str());
+        let _ = self.socket.send_with_str(message.as_str());
     }
 
     /// Returns the current game time
@@ -198,12 +196,12 @@ impl GameClient {
 
     pub fn get_clock_offset(&self) {
         let window = web_sys::window().expect("Should have a window in this context");
-        let time = window
+        let _time = window
             .performance()
             .expect("Unable to access performance")
             .now() as u128;
         let message = serde_json::to_string(&MessageType::Time(0)).unwrap();
-        self.socket.send_with_str(message.as_str());
+        let _ = self.socket.send_with_str(message.as_str());
     }
 
     pub fn enter_game(
@@ -219,7 +217,7 @@ impl GameClient {
             let message =
                 serde_json::to_string(&MessageType::EnterGame(game_metadata.game_id.to_owned()))
                     .unwrap();
-            self.socket.send_with_str(message.as_str());
+            let _ = self.socket.send_with_str(message.as_str());
             self.current_game = ActiveGame::Waiting(Waiting {
                 metadata: game_metadata,
                 players: None,
@@ -261,7 +259,7 @@ impl GameClient {
             .maps
             .get(&map_id)
             .ok_or(format!("Map {} not found.", map_id))?;
-        self::game_render::render_map(&ctx_2d, map, 2, canvas.width(), canvas.height());
+        self::game_render::render_map(&ctx_2d, map, 2, canvas.width(), canvas.height())?;
         Ok(())
     }
 
@@ -330,7 +328,7 @@ impl GameClient {
                 }
             }
             if let Some(selected_planet) = selected_planet {
-                let mut new_selection = if let Some(source_planet) = &game.selected_planet {
+                if let Some(source_planet) = &game.selected_planet {
                     self.make_move(&source_planet, selected_planet);
                     if let ActiveGame::Joined(ref mut game) = self.current_game {
                         game.selected_planet = None
@@ -358,6 +356,6 @@ impl GameClient {
             from: from.index as u16,
         }))
         .unwrap();
-        self.socket.send_with_str(message.as_str());
+        let _ = self.socket.send_with_str(message.as_str());
     }
 }

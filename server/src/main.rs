@@ -1,5 +1,4 @@
 #![feature(await_macro, async_await, futures_api)]
-#[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate tokio;
@@ -18,9 +17,7 @@ fn main() {
 fn bootstrap_game_servers() {
     GameServer::start(
         get_port(),
-        map_manager::FileSystemMapManager::new(
-            get_maps_dir()
-        ),
+        map_manager::FileSystemMapManager::new(get_maps_dir()),
     );
 }
 
@@ -29,5 +26,8 @@ fn get_maps_dir() -> String {
 }
 
 fn get_port() -> u16 {
-    std::env::var("IPG_PORT").expect("The IPG_PORT environment variable must be set.").parse::<u16>().expect("The IPG_PORT enironment variable must be a number")
+    std::env::var("IPG_PORT")
+        .expect("The IPG_PORT environment variable must be set.")
+        .parse::<u16>()
+        .expect("The IPG_PORT enironment variable must be a number")
 }

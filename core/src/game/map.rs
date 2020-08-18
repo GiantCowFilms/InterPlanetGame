@@ -1,6 +1,4 @@
 use crate::game;
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Planet {
@@ -55,8 +53,8 @@ impl Map {
                 "Invalid map configuration. At least two players are required to create a galaxy.",
             ));
         }
-        let mut planets: Result<Vec<game::Planet>,String> = self.planets.iter().enumerate().map(|(index,planet)| {
-            let mut possesion = match planet.possession.get(players.len() - 2) {
+        let planets: Result<Vec<game::Planet>,String> = self.planets.iter().enumerate().map(|(index,planet)| {
+            let possesion = match planet.possession.get(players.len() - 2) {
                 Some(0) => Ok(None),
                 Some(possesion_index) => match players.get_mut(*possesion_index as usize - 1) {
                     Some(player) => {
