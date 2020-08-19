@@ -89,8 +89,15 @@ h1:first-child, h2:first-child, h3:first-child, h4:first-child {
     grid-template-columns: 20em minmax(5em,auto);
 }
 
+.game-form-container {
+    display: grid;
+    grid-template-columns: minmax(3em,1fr) minmax(5em,1fr);
+    gap: 1.5em;
+}
+
 .game-form-fields {
     display: grid;
+    align-content: start;
     grid-template-columns: auto;
     row-gap: 1em;
 }
