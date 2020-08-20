@@ -114,6 +114,11 @@ h1:first-child, h2:first-child, h3:first-child, h4:first-child {
     width: 9em;
 }
 
+.game-waiting {
+    display: flex;
+    justify-content: center;
+}
+
 .player-name {
     display: grid;
     gap: 1em;

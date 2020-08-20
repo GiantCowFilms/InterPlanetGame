@@ -89,6 +89,7 @@ impl GameClient {
                 self.maps = map_list;
                 Some("MapList".to_owned())
             }
+            MessageType::EnterGame(_game_id) => Some("EnterGame".to_owned()),
             message => {
                 match self.current_game {
                     ActiveGame::Joined(ref mut current) => {
@@ -151,14 +152,19 @@ impl GameClient {
                                     _ => {
                                         // We should only get here for messages which
                                         // are meant to be handled by the Joining state.
-                                        panic!("recieved game state while joining, or standard message handler is missing.");
+
+                                        // Commented out for now because there are un-handled messages that are incorrectly arriving at these branches.
+                                        // panic!("recieved game state while joining, or standard message handler is missing.");
+                                        None
                                     }
                                 }
                             }
                         }
                     }
                     ActiveGame::None => {
-                        panic!("recieved game state message while outside of game!");
+                        // See commented panic above
+                        // panic!("recieved game state message while outside of game!");
+                        None
                     }
                 }
             }

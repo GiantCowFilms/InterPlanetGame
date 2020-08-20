@@ -33,6 +33,7 @@ pub struct CreateGame {
 #[derive(Deserialize, Serialize)]
 pub struct GameMetadata {
     pub game_id: String,
+    pub config: GameConfig,
     pub map_id: String,
 }
 

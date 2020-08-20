@@ -17,6 +17,12 @@ input, select {
     border-radius: 0.2em;
 }
 
+.button.disabled {
+    background: rgb(102, 121, 88);
+    box-shadow: none;
+    pointer-events:none;
+}
+
 .button:hover, button:hover {
     background: rgb(141, 221, 80);
     box-shadow: 0 0 1em rgba(134, 222, 68, 0.5);

@@ -219,9 +219,13 @@ where
             Ok(games) => {
                 let games_metadata = games
                     .iter()
-                    .map(|(key, val)| GameMetadata {
-                        game_id: key.clone(),
-                        map_id: val.lock().unwrap().game.map.name.clone(),
+                    .map(|(key, val)| {
+                        let game_exec = val.lock().unwrap();
+                        GameMetadata {
+                            game_id: key.clone(),
+                            config: game_exec.game.config.clone(),
+                            map_id: game_exec.game.map.name.clone(),
+                        }
                     })
                     .collect();
                 let seralized = serde_json::to_string(&MessageType::GameList(GameList {

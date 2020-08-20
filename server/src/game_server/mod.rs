@@ -88,10 +88,12 @@ impl GameServer {
     pub fn add_game(&self, game: Game) -> String {
         let mut games = self.games.write().unwrap();
         let map_id = game.map.name.clone();
+        let config = game.config.clone();
         let game_id = games.add_game(game);
         let message = Message::from(
             serde_json::to_string(&MessageType::NewGame(GameMetadata {
                 game_id: game_id.clone(),
+                config,
                 map_id,
             }))
             .unwrap(),

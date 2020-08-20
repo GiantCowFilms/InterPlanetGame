@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, MouseEvent } from 'react';
 import { gameConnectionSingleton } from "../connection/index";
-import { playerColors } from '../conts';
+import { playerColors, gameUrl } from '../gameInfo';
 
 interface Props {
     game: any
@@ -46,18 +46,36 @@ function GameWindow(props: Props) {
             setGameStarted(true);
             setPlayers();
         });
-        const unHookGamePlayersEvent = gameConnectionSingleton.onEvent("GamePlayers",setPlayers);
+        const unHookGamePlayersEvent = gameConnectionSingleton.onEvent("GamePlayers", setPlayers);
         return () => {
             unHookGameEvent();
             unHookGamePlayersEvent();
         };
     }, [canvasTop, canvasBottom, props.game]);
+    const canStart = props.game.config.min_players <= players.length;
     return (
         <>
             <div style={{
                 "position": "relative"
             }}>
-                {gameStarted ? undefined : <div onClick={startGame} className="button">Start Game!</div>}
+                <div className="game-waiting">
+                    {gameStarted ? undefined : <>
+                        {!canStart ?
+                            <div>
+                                <h2>Waiting for more players to join...</h2>
+                                <div>({players.length}/{props.game.config.min_players})
+                                players have joined.</div>
+                                <div>Invite your friends! <input readOnly value={gameUrl(props.game)} /></div>
+                            </div>
+                             :
+                             <div>
+                                 <h2>Ready to begin...</h2>
+                                 <div>{players.length} players have joined.</div>
+                                 <div onClick={startGame} className={["button", !canStart ? "disabled" : ""].join(" ")}>Start Game!</div>
+                             </div>
+                        }
+                    </>}
+                </div>
                 <canvas id="game-canvas-top" ref={canvasTop} style={{
                     "position": "absolute"
                 }} onMouseDown={MouseEvent} onMouseUp={MouseEvent}>
