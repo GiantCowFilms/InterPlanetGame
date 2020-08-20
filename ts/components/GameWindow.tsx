@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, MouseEvent } from 'react';
 import { gameConnectionSingleton } from "../connection/index";
+import { playerColors } from '../conts';
 
 interface Props {
     game: any
@@ -8,7 +9,7 @@ interface Props {
 function GameWindow(props: Props) {
     const canvasTop = useRef(null);
     const canvasBottom = useRef(null);
-    const [players,setPlayersInternal] = useState([]);
+    const [players, setPlayersInternal] = useState([]);
     const setPlayers = () => setPlayersInternal(gameConnectionSingleton.client.get_player_list());
     const [gameStarted, setGameStarted] = useState(false);
     const startGame = () => {
@@ -28,12 +29,12 @@ function GameWindow(props: Props) {
         // game is implictly started when the first GameState is sent
         let renderStarted = false;
         const unHookGameEvent = gameConnectionSingleton.onEvent("Game", () => {
-            if(!renderStarted) {
+            if (!renderStarted) {
                 const gameTimeFrames = gameConnectionSingleton.client.get_time(); // warning: nullable
                 const startTimeMilliseconds = Date.now() - (gameTimeFrames * 17);
                 console.log(`Started at: ` + startTimeMilliseconds);
                 const render = () => {
-                    const time = ~~((Date.now() - startTimeMilliseconds)/17);
+                    const time = ~~((Date.now() - startTimeMilliseconds) / 17);
                     if (time >= 0) {
                         gameConnectionSingleton.client.render_game_frame(time);
                     }
@@ -64,10 +65,14 @@ function GameWindow(props: Props) {
                 <canvas id="game-canvas-bottom" ref={canvasBottom} >
                 </canvas>
             </div>
-            <div className="card card-inside game-players"> 
+            <div className="card card-inside game-players">
                 <h4>Players</h4>
                 {players.map(player => {
-                    return <div>{player.name}</div>;
+                    return <div>
+                        <div
+                            className="player-color"
+                            style={{ backgroundColor: playerColors[player.possession + 1] }} />
+                        {player.name}</div>;
                 })}
             </div>
         </>

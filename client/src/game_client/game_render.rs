@@ -33,6 +33,8 @@ pub struct GameRender {
     move_renders: Vec<MoveRender>,
 }
 
+// Replicated in ts\conts.ts
+// Be sure to update it there as well
 pub static PLAYER_COLORS: [&str; 9] = [
     "#878787", //Neutral Gray
     "#de4b37", //Red
