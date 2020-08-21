@@ -13,21 +13,21 @@
   "devDependencies": {
     "@wasm-tool/wasm-pack-plugin": "0.4.2",
     "awesome-typescript-loader": "^5.2.1",
-    "css-loader": "^3.2.0",
+    "css-loader": "^3.6.0",
     "html-webpack-plugin": "^3.2.0",
     "source-map-loader": "^0.2.4",
-    "style-loader": "^1.0.0",
-    "typescript": "^3.5.1",
-    "webpack": "^4.32.2",
-    "webpack-cli": "^3.3.2",
-    "webpack-dev-server": "^3.5.1"
+    "style-loader": "^1.2.1",
+    "typescript": "^3.9.1",
+    "webpack": "^4.44.1",
+    "webpack-cli": "^3.3.12",
+    "webpack-dev-server": "^3.11.0"
   },
   "dependencies": {
-    "@types/react": "^16.8.0",
-    "@types/react-dom": "^16.8.0",
-    "@types/webpack": "^4.4.32",
-    "dotenv-webpack": "^1.7.0",
-    "react": "^16.8.0",
-    "react-dom": "^16.8.0"
+    "@types/react": "^16.9.46",
+    "@types/react-dom": "^16.9.8",
+    "@types/webpack": "^4.41.21",
+    "dotenv-webpack": "^1.8.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   }
 }
