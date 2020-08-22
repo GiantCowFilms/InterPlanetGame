@@ -8,9 +8,10 @@ interface Props {
 
 function GameForm() {
     useEffect(() => {
-        gameConnectionSingleton.onEvent("MapList", () => {
+        const remove = gameConnectionSingleton.onEvent("MapList", () => {
             setMapList(gameConnectionSingleton.client.get_maps());
         });
+        return remove;
     }, []);
     const [mapList, setMapList] = useState(gameConnectionSingleton.client.get_maps());
     const [minPlayers, setMinPlayers] = useState(2);
@@ -51,7 +52,7 @@ function GameForm() {
                 <input type="text" pattern="[0-9]*" onChange={e => setMinPlayers(parseInt(e.target.value))} value={minPlayers} />
                 <label>Map</label>
                 <select onChange={e => setMapId(e.target.value)} value={mapId}>
-                    <option selected={true} disabled={true} hidden value="">Select Map...</option>
+                    <option disabled={true} hidden value="">Select Map...</option>
                     {mapList.map((map_id: string) => {
                         return <option key={map_id} value={map_id}>{map_id}</option>;
                     })}
