@@ -65,7 +65,7 @@ function GameWindow(props: Props) {
                                 <h2>Waiting for more players to join...</h2>
                                 <div>({players.length}/{props.game.config.min_players})
                                 players have joined.</div>
-                                <div>Invite your friends! <input readOnly value={gameUrl(props.game)} /></div>
+                                <div>Invite your friends! <input readOnly value={gameUrl(props.game).toString()} /></div>
                             </div>
                              :
                              <div>

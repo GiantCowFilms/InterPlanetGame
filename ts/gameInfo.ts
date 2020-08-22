@@ -12,6 +12,6 @@ export const playerColors = [
     "#a565e0", // Lavender
 ];
 
-export const gameUrl = (game: any) => {
-    return `${window.location.href}#join=${game.game_id}`;
+export const gameUrl = (game: any): URL => {
+    return new URL(`${window.location.origin}#join=${game.game_id}`);
 }
