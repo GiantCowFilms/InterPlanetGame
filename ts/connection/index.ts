@@ -5,7 +5,30 @@ type GameConnection = {
     socket: WebSocket;
     eventHandlers: Map<string,(() => void)[]>;
     onEvent: (event: string,callback: () =>void) => () => void;
+    triggerEvent: (event: string) => void;
 };
+
+function configureSocket(socket: WebSocket, client: GameClient, connection: GameConnection, delay = 1000) {
+    let delayRef = { ref: delay };
+    socket.addEventListener("open",() => {
+        connection.triggerEvent("ConnectionOpen");
+        delayRef.ref = 1000;
+    });
+    socket.addEventListener("message", function (event) {
+        const type = client.handle_message(event.data);
+        connection.triggerEvent(type);
+    });
+    socket.addEventListener("close",(error) => {
+        connection.triggerEvent("ConnectionClose");
+        // If the connection fails, retry
+        setTimeout(() => {
+            const newSocket = new WebSocket(socket.url);
+            client.set_socket(newSocket);
+            connection.socket = newSocket;
+            configureSocket(newSocket,client,connection,delayRef.ref * 2);
+        },delayRef.ref);
+    });
+}
 
 export default function createConnection (url: string): GameConnection {
     const socket: WebSocket = new WebSocket(url);
@@ -23,18 +46,19 @@ export default function createConnection (url: string): GameConnection {
                 const events = this.eventHandlers.get(event);
                 events.splice(events.indexOf(callback),1);
             }
+        },
+        triggerEvent: function (this: GameConnection, event) {
+            const handlers = this.eventHandlers.get(event);
+            if (handlers) {
+                for (const eventHanlder of handlers) {
+                    eventHanlder();
+                }
+            }
         }
     };
     connection.onEvent.bind(connection);
-    socket.addEventListener("message", function (event) {
-        const type = client.handle_message(event.data);
-        let handlers = connection.eventHandlers.get(type);
-        if (handlers) {
-            for (let eventHanlder of handlers) {
-                eventHanlder();
-            }
-        }
-    });
+    connection.triggerEvent.bind(connection);
+    configureSocket(socket,client,connection);
     return connection;
 }
 

@@ -5,6 +5,7 @@ import { mode, ModeContext } from './state/mode';
 import PlayerName from './components/PlayerName';
 import { useGameList } from './connection/hooks';
 import { gameUrl } from './gameInfo';
+import ConnectionError from './components/ConnectionError';
 type game_state = {
 
 }
@@ -62,6 +63,7 @@ function Root() {
     let [playerName, setPlayerName] = useState(undefined);
     return <>
         <div className="title">Inter-Planet Game</div>
+        <ConnectionError />
         <ModeContext.Provider value={{
             mode,
             setMode

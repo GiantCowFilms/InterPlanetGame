@@ -315,6 +315,10 @@ impl GameClient {
         }
     }
 
+    pub fn set_socket(&mut self, socket: WebSocket) {
+        self.socket = socket;
+    }
+
     pub fn mouse_event(&mut self, x: f32, y: f32) -> Result<(), JsValue> {
         if let ActiveGame::Joined(ref game) = self.current_game {
             let galaxy = game
