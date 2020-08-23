@@ -20,7 +20,7 @@ type state = {
 }
 
 function Root() {
-    let [mode, setModeInternal] = useState<mode>({
+    const [mode, setModeInternal] = useState<mode>({
         type: "browse"
     });
     const setMode = (mode: mode) => {
@@ -59,8 +59,8 @@ function Root() {
         return () => {
             document.removeEventListener("hashchange", onHashChange);
         };
-    },[games]);
-    let [playerName, setPlayerName] = useState(undefined);
+    },[games,mode]);
+    const [playerName, setPlayerName] = useState(undefined);
     return <>
         <div className="title">Inter-Planet Game</div>
         <ConnectionError />

@@ -85,8 +85,8 @@ function GameWindow(props: Props) {
             </div>
             <div className="card card-inside game-players">
                 <h4>Players</h4>
-                {players.map(player => {
-                    return <div>
+                {players.map((player,idx) => {
+                    return <div key={idx}>
                         <div
                             className="player-color"
                             style={{ backgroundColor: playerColors[player.possession + 1] }} />

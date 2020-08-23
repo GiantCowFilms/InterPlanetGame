@@ -11,9 +11,14 @@
     "create-rust-webpack": ".bin/create-rust-webpack.js"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^3.9.1",
+    "@typescript-eslint/parser": "^3.9.1",
     "@wasm-tool/wasm-pack-plugin": "0.4.2",
     "awesome-typescript-loader": "^5.2.1",
     "css-loader": "^3.6.0",
+    "eslint": "^7.7.0",
+    "eslint-plugin-react": "^7.20.6",
+    "eslint-plugin-react-hooks": "^4.1.0",
     "html-webpack-plugin": "^3.2.0",
     "source-map-loader": "^0.2.4",
     "style-loader": "^1.2.1",

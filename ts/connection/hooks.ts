@@ -14,6 +14,6 @@ export const useGameList = () => {
             remove1();
             remove2();
         };
-    }, [setGames]);
+    },[setGames]);
     return state;
 }
