@@ -1,5 +1,5 @@
 use futures::sink::Sink;
-use futures::stream::Stream;
+use futures::StreamExt;
 use ipg_core::game::Game;
 use ipg_core::protocol::messages::{GameMetadata, MessageType};
 use rand::distributions::Alphanumeric;
@@ -8,9 +8,14 @@ use std::collections::HashMap;
 use std::iter;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-use std::sync::{Mutex, RwLock};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::prelude::*;
+use std::{
+    pin::Pin,
+    sync::{Mutex, RwLock},
+};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    runtime::Runtime,
+};
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::{Error, Message};
 use tokio_tungstenite::WebSocketStream;
@@ -25,9 +30,8 @@ pub struct GameServer {
     port: u16,
     games: RwLock<HashMap<String, Arc<Mutex<GameExecutor>>>>,
     // In theory, the sinks will end up all being the same type, meaning static dispatch is not out of the quesiton.
-    connections:
-        Mutex<Vec<Box<Arc<Mutex<dyn Sink<SinkItem = Message, SinkError = Error> + Send + Sync>>>>>,
-    map_manager: Mutex<Box<map_manager::MapManager + Send>>,
+    connections: Mutex<Vec<Arc<Mutex<Pin<Box<dyn Sink<Message, Error = Error> + Send + Sync>>>>>>,
+    map_manager: Mutex<Box<dyn map_manager::MapManager + Send>>,
 }
 
 trait GameList {
@@ -65,22 +69,20 @@ impl GameServer {
             games: RwLock::new(HashMap::new()),
             map_manager: Mutex::new(Box::new(maps)),
         };
-
-        let listener = TcpListener::bind(&SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-            port,
-        ))
-        .unwrap();
-        tokio::run_async(async move {
-            let mut incoming = listener.incoming();
+        let mut rt = Runtime::new().unwrap();
+        rt.block_on(async move {
+            let mut listener = TcpListener::bind(&SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                port,
+            ))
+            .await
+            .unwrap();
             let shareable_instance = Arc::new(instance);
-            while let Some(stream) = await!(incoming.next()) {
+            let mut incoming = listener.incoming();
+            while let Some(stream) = incoming.next().await {
                 let stream = stream.unwrap();
-                let ws_stream = await!(accept_async(stream));
-                await!(GameServer::handle_stream(
-                    shareable_instance.clone(),
-                    ws_stream.unwrap()
-                ));
+                let ws_stream = accept_async(stream).await;
+                GameServer::handle_stream(shareable_instance.clone(), ws_stream.unwrap()).await;
             }
         });
     }
@@ -108,7 +110,11 @@ impl GameServer {
             // retry). Failing silently is not good, since it may make it
             // difficult to debug any issues that stem from message transport
             // failure.
-            let _ = connection.lock().unwrap().start_send(message.clone());
+            let _ = connection
+                .lock()
+                .unwrap()
+                .as_mut()
+                .start_send(message.clone());
         }
     }
 
@@ -127,22 +133,20 @@ impl GameServer {
     ///
     async fn handle_stream<'a>(instance: Arc<GameServer>, ws_stream: WebSocketStream<TcpStream>) {
         let (sink, mut stream) = ws_stream.split();
-        let sink_mtx = Arc::new(Mutex::new(sink));
+        let sink_mtx = Arc::new(Mutex::new(
+            Box::pin(sink) as Pin<Box<(dyn Sink<Message, Error = Error> + Send + Sync)>>
+        ));
         // New scope to make sure the lock gets dropped immediately
         {
-            instance
-                .connections
-                .lock()
-                .unwrap()
-                .push(Box::new(sink_mtx.clone()));
+            instance.connections.lock().unwrap().push(sink_mtx.clone());
         };
         println!("Connection opened.");
-        tokio::spawn_async(async move {
+        tokio::spawn(async move {
             let mut connection = GameConnection::new(instance.clone(), sink_mtx.clone());
-            await!(connection.handle_new_client());
-            while let Some(Ok(message)) = await!(stream.next()) {
+            connection.handle_new_client().await;
+            while let Some(Ok(message)) = stream.next().await {
                 let message = message;
-                await!(connection.handle_message(&message));
+                connection.handle_message(&message).await;
             }
             connection.handle_client_exit();
             println!("Connection closed.");

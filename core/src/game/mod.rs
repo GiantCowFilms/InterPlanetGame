@@ -114,7 +114,7 @@ pub enum GameEvent {
 
 #[derive(Default)]
 pub struct GameEventSource {
-    pub handlers: Vec<Box<FnMut(&GameEvent, &mut Game) -> () + Send + Sync>>,
+    pub handlers: Vec<Box<dyn FnMut(&GameEvent, &mut Game) -> () + Send + Sync>>,
 }
 
 impl GameEventSource {

@@ -5,18 +5,18 @@ authors = ["GiantCowFilms <git@giantcowfilms.com>"]
 edition = "2018"
 
 [dependencies]
-tokio = { version = "=0.1.19", features = ["async-await-preview"]}
-tokio-tungstenite = "*"
+tokio = { version = "0.2.0", features = ["full"] }
+tokio-tungstenite = "0.11.0"
 serde_json = "=1.0.36"
 serde = { version = "1.0.85", features = ["rc"]}
 serde_derive = "1.0.85"
-futures = "0.1.25"
+futures = "0.3.0"
 h2 = "0.1"
 http = "0.1"
 #rand = { git = "https://github.com/rust-random/rand" }
 rand = "0.6.5"
 ipg_core = {path = "../core"}
-env_logger = "*"
+env_logger = "0.7.1"
 
 # [[bin]]
 # name = "serverbin"

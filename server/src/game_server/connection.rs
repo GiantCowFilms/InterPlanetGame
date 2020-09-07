@@ -1,9 +1,13 @@
 use crate::GameServer;
-use futures::sink::Sink;
+use futures::Sink;
+use futures::SinkExt;
 use ipg_core::game::{Game, GameEvent, GameExecutor, Player};
 use ipg_core::protocol::messages::{GameList, GameMetadata, MessageType};
 use std::future::Future;
-use std::sync::{Arc, Mutex};
+use std::{
+    pin::Pin,
+    sync::{Arc, Mutex},
+};
 use tokio_tungstenite::tungstenite::{Error, Message};
 
 pub trait Captures<'a> {}
@@ -12,19 +16,19 @@ impl<'a, T> Captures<'a> for T {}
 
 pub struct GameConnection<S>
 where
-    S: Sink<SinkItem = Message, SinkError = Error> + Send,
+    S: Sink<Message, Error = Error> + Send + ?Sized,
 {
     player: Option<Player>,
     current_game: Option<Arc<Mutex<GameExecutor>>>,
-    sink: Arc<Mutex<S>>,
+    sink: Arc<Mutex<Pin<Box<S>>>>,
     instance: Arc<GameServer>,
 }
 
 impl<S> GameConnection<S>
 where
-    S: Sink<SinkItem = Message, SinkError = Error> + Send + 'static,
+    S: Sink<Message, Error = Error> + Send + 'static + ?Sized,
 {
-    pub fn new(instance: Arc<GameServer>, sink: Arc<Mutex<S>>) -> Self {
+    pub fn new(instance: Arc<GameServer>, sink: Arc<Mutex<Pin<Box<S>>>>) -> Self {
         GameConnection {
             player: None,
             current_game: None,
@@ -33,27 +37,27 @@ where
         }
     }
 
-    fn handle_game_event(sink: Arc<Mutex<S>>, game: &mut Game, event: &GameEvent) {
+    fn handle_game_event(sink: Arc<Mutex<Pin<Box<S>>>>, game: &mut Game, event: &GameEvent) {
         let mut sink = sink.lock().unwrap();
         //let mut executor = executor.lock().unwrap();
         match event {
             GameEvent::Start => {
                 let seralized = serde_json::to_string(&MessageType::StartGame).unwrap();
-                let _ = sink.start_send(Message::from(seralized));
+                let _ = sink.as_mut().start_send(Message::from(seralized));
                 let seralized = serde_json::to_string(&MessageType::Game(game.clone()));
-                let _ = sink.start_send(Message::from(seralized.unwrap()));
+                let _ = sink.as_mut().start_send(Message::from(seralized.unwrap()));
             }
             GameEvent::Move(_game_move) => {
                 // let seralized =
                 //     serde_json::to_string(&MessageType::TimedGameMove(game_move.clone())).unwrap();
                 // sink.start_send(Message::from(seralized));
                 let seralized = serde_json::to_string(&MessageType::Game(game.clone()));
-                let _ = sink.start_send(Message::from(seralized.unwrap()));
+                let _ = sink.as_mut().start_send(Message::from(seralized.unwrap()));
             }
             GameEvent::PlayerLeave(_) | GameEvent::Player(_) => {
                 let seralized =
                     serde_json::to_string(&MessageType::GamePlayers(game.players.clone())).unwrap();
-                let _ = sink.start_send(Message::from(seralized));
+                let _ = sink.as_mut().start_send(Message::from(seralized));
             }
         }
     }
@@ -89,7 +93,7 @@ where
                     }
                     MessageType::ExitGame => {
                         let mut sink = self.sink.lock().unwrap();
-                        let _ = sink.start_send(Message::from("ExitGame"));
+                        let _ = sink.as_mut().start_send(Message::from("ExitGame"));
                         Ok(())
                     }
                     MessageType::EnterGame(game_id) => {
@@ -123,12 +127,12 @@ where
                         ));
                         let seralized =
                             serde_json::to_string(&MessageType::EnterGame(game_id.clone()));
-                        let _ = sink.start_send(Message::from(seralized.unwrap()));
+                        let _ = sink.as_mut().start_send(Message::from(seralized.unwrap()));
                         if let Some(player) = &self.player {
                             let seralized = serde_json::to_string(&MessageType::Possession(
                                 player.possession as u32,
                             ));
-                            let _ = sink.start_send(Message::from(seralized.unwrap()));
+                            let _ = sink.as_mut().start_send(Message::from(seralized.unwrap()));
                         };
                         if game_executor.game.state.is_some() {
                             // Send game state
@@ -141,13 +145,13 @@ where
                             let seralized = serde_json::to_string(&MessageType::Game(
                                 game_executor.game.clone(),
                             ));
-                            let _ = sink.start_send(Message::from(seralized.unwrap()));
+                            let _ = sink.as_mut().start_send(Message::from(seralized.unwrap()));
                         } else {
                             // Otherwise just send the player list
                             let seralized = serde_json::to_string(&MessageType::GamePlayers(
                                 game_executor.game.players.clone(),
                             ));
-                            let _ = sink.start_send(Message::from(seralized.unwrap()));
+                            let _ = sink.as_mut().start_send(Message::from(seralized.unwrap()));
                         }
 
                         self.current_game = Some(game_executor_mtx.clone());
@@ -193,6 +197,7 @@ where
                             .unwrap()
                             .as_millis();
                         let mut sink = self.sink.lock().unwrap();
+                        let sink = sink.as_mut();
                         let _ = sink.start_send(Message::from(
                             serde_json::to_string(&MessageType::Time(time)).unwrap(),
                         ));
@@ -205,6 +210,7 @@ where
                 Ok(_) => (),
                 Err(e) => {
                     let mut sink = self.sink.lock().unwrap();
+                    let sink = sink.as_mut();
                     let _ = sink.start_send(Message::from(
                         serde_json::to_string(&MessageType::Error(e)).unwrap(),
                     ));
@@ -224,7 +230,7 @@ where
                     .expect("Game state corrupted by poisned mutex");
                 let message = &MessageType::MapList(map_manager.maps());
                 let seralized = serde_json::to_string(message);
-                let _ = sink.start_send(Message::from(seralized.unwrap()));
+                let _ = sink.as_mut().start_send(Message::from(seralized.unwrap()));
                 let games_metadata = games
                     .iter()
                     .map(|(key, val)| {
@@ -239,13 +245,13 @@ where
                 let seralized = serde_json::to_string(&MessageType::GameList(GameList {
                     games: games_metadata,
                 }));
-                let _ = sink.start_send(Message::from(seralized.unwrap()));
+                let _ = sink.as_mut().start_send(Message::from(seralized.unwrap()));
                 Ok(())
             }
             Err(_) => Err("Game state corrupted by poisned mutex.".to_owned()),
         };
         if let Err(err_msg) = result {
-            let _ = sink.start_send(Message::from(err_msg));
+            let _ = sink.as_mut().start_send(Message::from(err_msg));
         }
     }
 

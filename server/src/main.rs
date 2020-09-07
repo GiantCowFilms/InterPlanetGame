@@ -1,6 +1,4 @@
-#![feature(await_macro, async_await, futures_api)]
 extern crate serde_derive;
-#[macro_use]
 extern crate tokio;
 
 mod game_server;
