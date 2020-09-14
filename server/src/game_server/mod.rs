@@ -1,5 +1,5 @@
 use futures::sink::Sink;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use ipg_core::game::Game;
 use ipg_core::protocol::messages::{GameMetadata, MessageType};
 use rand::distributions::Alphanumeric;
@@ -7,14 +7,12 @@ use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 use std::iter;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::pin::Pin;
 use std::sync::Arc;
-use std::{
-    pin::Pin,
-    sync::{Mutex, RwLock},
-};
 use tokio::{
     net::{TcpListener, TcpStream},
     runtime::Runtime,
+    sync::{Mutex, RwLock},
 };
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::{Error, Message};
@@ -87,8 +85,8 @@ impl GameServer {
         });
     }
 
-    pub fn add_game(&self, game: Game) -> String {
-        let mut games = self.games.write().unwrap();
+    pub async fn add_game(&self, game: Game) -> String {
+        let mut games = self.games.write().await;
         let map_id = game.map.name.clone();
         let config = game.config.clone();
         let game_id = games.add_game(game);
@@ -100,31 +98,29 @@ impl GameServer {
             }))
             .unwrap(),
         );
-        self.broadcast(message);
+        self.broadcast(message).await;
         game_id
     }
 
-    fn broadcast(&self, message: Message) {
-        for connection in self.connections.lock().unwrap().iter() {
+    async fn broadcast(&self, message: Message) {
+        for connection in self.connections.lock().await.iter() {
             // TODO we should record when message sending fails (or even better
             // retry). Failing silently is not good, since it may make it
             // difficult to debug any issues that stem from message transport
             // failure.
-            let _ = connection
-                .lock()
-                .unwrap()
-                .as_mut()
-                .start_send(message.clone());
+            let _ = connection.lock().await.as_mut().send(message.clone()).await;
+            // Per optimization possibilty - currently we wait for every message to bet sent fully before sending this next one.
+            // This would be much slower then concurrently sending all the messages
         }
     }
 
-    pub fn remove_game(&self, game_id: &String) {
-        let mut games = self.games.write().unwrap();
+    pub async fn remove_game(&self, game_id: &String) {
+        let mut games = self.games.write().await;
         games.remove(game_id);
         let message = Message::from(
             serde_json::to_string(&MessageType::RemoveGame(game_id.clone())).unwrap(),
         );
-        self.broadcast(message);
+        self.broadcast(message).await;
     }
 
     /// Handles an incoming websocket stream
@@ -138,7 +134,7 @@ impl GameServer {
         ));
         // New scope to make sure the lock gets dropped immediately
         {
-            instance.connections.lock().unwrap().push(sink_mtx.clone());
+            instance.connections.lock().await.push(sink_mtx.clone());
         };
         println!("Connection opened.");
         tokio::spawn(async move {
@@ -148,7 +144,7 @@ impl GameServer {
                 let message = message;
                 connection.handle_message(&message).await;
             }
-            connection.handle_client_exit();
+            connection.handle_client_exit().await;
             println!("Connection closed.");
         });
     }

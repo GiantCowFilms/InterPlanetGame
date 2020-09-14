@@ -9,7 +9,7 @@ type GameConnection = {
 };
 
 function configureSocket(socket: WebSocket, client: GameClient, connection: GameConnection, delay = 1000) {
-    let delayRef = { ref: delay };
+    const delayRef = { ref: delay };
     socket.addEventListener("open",() => {
         connection.triggerEvent("ConnectionOpen");
         delayRef.ref = 1000;

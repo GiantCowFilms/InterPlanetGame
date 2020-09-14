@@ -1,3 +1,4 @@
+#![feature(async_closure)]
 extern crate serde_derive;
 extern crate tokio;
 
