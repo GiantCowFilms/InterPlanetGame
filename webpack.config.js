@@ -8,7 +8,7 @@ module.exports = {
   entry: "./ts/bootstrap.js",
   output: {
     path: dist,
-    filename: "bundle.js"
+    filename: "[contenthash].js"
   },
   module: {
     rules: [
