@@ -20,6 +20,8 @@ jobs:
         run: curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal --default-toolchain nightly -y
       - name: Add WASM target
         run: rustup target add wasm32-unknown-unknown
+      - name: Create env file
+        run: echo "${{ secrets.ENV_FILE }}"  > ".env"
         # Needed to prevet wasm-pack from ignoring Cargo.lock
       - name: build frontend crate
         run: cargo build -p ipg_client --release --target wasm32-unknown-unknown
