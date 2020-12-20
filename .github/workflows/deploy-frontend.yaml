@@ -23,6 +23,8 @@ jobs:
         # Needed to prevet wasm-pack from ignoring Cargo.lock
       - name: build frontend crate
         run: cargo build -p ipg_client --release --target wasm32-unknown-unknown
+        # Run preinstall script to make wasm-pack build available to link as an NPM dependency
+      - run: npm run preinstall
       - run: npm ci
       - run: npm run build
       - name: Create Key File
@@ -30,5 +32,5 @@ jobs:
       - name: Save Server Key
         run: echo "${{ secrets.SERVER_SSH_KEY }}"  > ~/key_file & chmod 400 ~/key_file
       - name: Upload
-        run: scp -o -r "StrictHostKeyChecking=no" -i ~/key_file ./dist/* github_actions@${{ secrets.SERVER_IP }}:${{ secrets.SERVER_DIRECTORY }}/client
+        run: scp -o "StrictHostKeyChecking=no" -r -i ~/key_file ./dist/* github_actions@${{ secrets.SERVER_IP }}:${{ secrets.SERVER_DIRECTORY }}/client
       

@@ -5,7 +5,8 @@
   "license": "Apache-2.0/MIT",
   "scripts": {
     "start": "webpack-dev-server -d",
-    "build": "webpack"
+    "build": "webpack",
+    "preinstall": "cd client && wasm-pack build && cd ../"
   },
   "bin": {
     "create-rust-webpack": ".bin/create-rust-webpack.js"
@@ -28,6 +29,7 @@
     "webpack-dev-server": "^3.11.0"
   },
   "dependencies": {
+    "ipg_client": "./client/pkg",
     "@types/react": "^16.9.46",
     "@types/react-dom": "^16.9.8",
     "@types/webpack": "^4.41.21",
