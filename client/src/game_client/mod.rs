@@ -319,7 +319,10 @@ impl GameClient {
         self.socket = socket;
     }
 
-    pub fn mouse_event(&mut self, x: f32, y: f32) -> Result<(), JsValue> {
+    /*
+        Mouse up and mouse down handle selecting planets and creating moves
+    */
+    pub fn mouse_up(&mut self, x: f32, y: f32) -> Result<(), JsValue> {
         if let ActiveGame::Joined(ref game) = self.current_game {
             let galaxy = game
                 .exec
@@ -328,32 +331,71 @@ impl GameClient {
                 .as_ref()
                 .ok_or("No game state loaded.")
                 .map_err(|err| JsValue::from(err))?;
-            let mut selected_planet = None;
-            for planet in &galaxy.planets {
-                if planet.radius.powf(2f32)
-                    > (planet.x as f32 - x).powf(2f32) + (planet.y as f32 - y).powf(2f32)
-                {
-                    selected_planet = Some(planet);
-                    break;
-                }
-            }
-            if let Some(selected_planet) = selected_planet {
+            let new_selection = galaxy.find_planet_at(x, y);
+            if let Some(destination_planet) = new_selection {
+                // Existance of source_planet means we are at the end of a drag between two planets
                 if let Some(source_planet) = &game.selected_planet {
-                    self.make_move(&source_planet, selected_planet);
-                    if let ActiveGame::Joined(ref mut game) = self.current_game {
-                        game.selected_planet = None
-                    }
-                } else if selected_planet
-                    .possession
-                    .map(|p| p as u32 == game.possesion_index)
-                    .unwrap_or(false)
-                {
-                    let new_selection = selected_planet.clone();
-                    if let ActiveGame::Joined(ref mut game) = self.current_game {
-                        game.selected_planet = Some(new_selection)
+                    if source_planet.index != destination_planet.index {
+                        self.make_move(&source_planet, destination_planet);
+                        if let ActiveGame::Joined(ref mut game) = self.current_game {
+                            game.selected_planet = None
+                        }
                     }
                 };
+            } else {
+                // We are dragging into empty space. This should deselect the currently selected planet
+                if let ActiveGame::Joined(ref mut game) = self.current_game {
+                    game.selected_planet = None;
+                }
             };
+        } else {
+            return Err(Into::<JsValue>::into("not currently in a game"));
+        }
+        Ok(())
+    }
+
+    pub fn mouse_down(&mut self, x: f32, y: f32) -> Result<(), JsValue> {
+        if let ActiveGame::Joined(ref game) = self.current_game {
+            let galaxy = game
+                .exec
+                .game
+                .state
+                .as_ref()
+                .ok_or("No game state loaded.")
+                .map_err(|err| JsValue::from(err))?;
+            let new_selection = galaxy.find_planet_at(x, y);
+            if let Some(new_selection) = new_selection {
+                // If a planet is already selected, this is a second click, setting the destination planet
+                if let Some(source_planet) = &game.selected_planet {
+                    // If we are clicking on the same planet, clear the selection
+                    // Otherwise, initiate a move between the two planets, and then
+                    // clear the selection.
+                    if new_selection.index != source_planet.index {
+                        self.make_move(&source_planet, new_selection);
+                    }
+                    if let ActiveGame::Joined(ref mut game) = self.current_game {
+                        game.selected_planet = None;
+                    }
+                } else {
+                    // If no planet is selected, we are either on the start of a drag between two
+                    // planets or we are clicking on the first planet.
+                    let new_selection = new_selection.clone();
+                    let owned_by_player = new_selection
+                        .possession
+                        .map(|p| p as u32 == game.possesion_index)
+                        .unwrap_or(false);
+                    if owned_by_player {
+                        if let ActiveGame::Joined(ref mut game) = self.current_game {
+                            game.selected_planet = Some(new_selection);
+                        }
+                    }
+                }
+            } else {
+                if let ActiveGame::Joined(ref mut game) = self.current_game {
+                    // We are clicking in empty space. This should de-select the planet
+                    game.selected_planet = None;
+                }
+            }
         } else {
             return Err(Into::<JsValue>::into("not currently in a game"));
         }

@@ -55,6 +55,19 @@ pub struct Galaxy {
     pub moves: Vec<Move>,
 }
 
+impl Galaxy {
+    pub fn find_planet_at(&self, x: f32, y: f32) -> Option<&Planet> {
+        for planet in &self.planets {
+            if planet.radius.powf(2f32)
+                > (planet.x as f32 - x).powf(2f32) + (planet.y as f32 - y).powf(2f32)
+            {
+                return Some(planet);
+            }
+        }
+        return None;
+    }
+}
+
 //#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Game {

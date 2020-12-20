@@ -15,14 +15,22 @@ function GameWindow(props: Props) {
     const startGame = () => {
         gameConnectionSingleton.client.start_game();
     }
-    const MouseEvent = (e: MouseEvent) => {
+    const getCoordinates = (e: MouseEvent) => {
         // This is awful:
         const rect = (Array.from(canvasTop.current.parentElement.children)
             .find((child: any) => child.id === "game-canvas-top") as any)
             .getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        gameConnectionSingleton.client.mouse_event(x, y);
+        return {x,y};
+    }
+    const mouseUp = (e: MouseEvent) => {
+        const {x,y} = getCoordinates(e);
+        gameConnectionSingleton.client.mouse_up(x, y);
+    }
+    const mouseDown = (e: MouseEvent) => {
+        const {x,y} = getCoordinates(e);
+        gameConnectionSingleton.client.mouse_down(x, y);
     }
     useEffect(() => {
         gameConnectionSingleton.client.enter_game(props.game, canvasTop.current, canvasBottom.current);
@@ -67,25 +75,25 @@ function GameWindow(props: Props) {
                                 players have joined.</div>
                                 <div>Invite your friends! <input readOnly value={gameUrl(props.game).toString()} /></div>
                             </div>
-                             :
-                             <div>
-                                 <h2>Ready to begin...</h2>
-                                 <div>{players.length} players have joined.</div>
-                                 <div onClick={startGame} className={["button", !canStart ? "disabled" : ""].join(" ")}>Start Game!</div>
-                             </div>
+                            :
+                            <div>
+                                <h2>Ready to begin...</h2>
+                                <div>{players.length} players have joined.</div>
+                                <div onClick={startGame} className={["button", !canStart ? "disabled" : ""].join(" ")}>Start Game!</div>
+                            </div>
                         }
                     </>}
                 </div>
                 <canvas id="game-canvas-top" ref={canvasTop} style={{
                     "position": "absolute"
-                }} onMouseDown={MouseEvent} onMouseUp={MouseEvent}>
+                }} onMouseDown={mouseDown} onMouseUp={mouseUp}>
                 </canvas>
                 <canvas id="game-canvas-bottom" ref={canvasBottom} >
                 </canvas>
             </div>
             <div className="card card-inside game-players">
                 <h4>Players</h4>
-                {players.map((player,idx) => {
+                {players.map((player, idx) => {
                     return <div key={idx}>
                         <div
                             className="player-color"
