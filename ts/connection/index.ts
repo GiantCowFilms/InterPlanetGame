@@ -12,6 +12,12 @@ function configureSocket(socket: WebSocket, client: GameClient, connection: Game
     const delayRef = { ref: delay };
     socket.addEventListener("open",() => {
         connection.triggerEvent("ConnectionOpen");
+        // Send a message to prevent cloudflare from timing out hte connection.
+        // Cloudflare times out after 100 seconds, so we are sending a keep alive every 60.
+        const interval = setInterval(() => {
+            socket.send(JSON.stringify("Ping"));
+        }, 1000 * 60 /* one minute */);
+        socket.addEventListener("close",() => clearInterval(interval));
         delayRef.ref = 1000;
     });
     socket.addEventListener("message", function (event) {

@@ -100,6 +100,12 @@ where
             .map_err(|_| "Could not parse the provided message.".to_owned())?;
         //Inside message handlers, always lock sinks first to avoid deadlocks
         match message_data {
+            MessageType::Ping => {
+                let mut sink = self.sink.lock().await;
+                let seralized = serde_json::to_string(&MessageType::Pong);
+                let _ = sink.send(Message::from(seralized.unwrap())).await;
+                Ok(())
+            }
             MessageType::CreateGame(game_settings) => {
                 //let mut sink = self.sink.lock().unwrap();
                 let game = {

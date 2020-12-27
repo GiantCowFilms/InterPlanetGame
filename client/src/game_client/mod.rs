@@ -70,6 +70,7 @@ impl GameClient {
         log!("{}", msg_body.as_str());
         let message = serde_json::from_str::<MessageType>(msg_body.as_str()).unwrap();
         match message {
+            MessageType::Pong => Some("Pong".to_string()),
             MessageType::NewGame(game_metadata) => {
                 self.game_list.push(game_metadata);
                 Some("NewGame".to_string())

@@ -67,6 +67,8 @@ pub enum MessageType {
     TimedGameMove(Move),
     StartGame,
     ExitGame,
+    Ping,
+    Pong,
     NewGame(GameMetadata),
     RemoveGame(String),
     GameList(GameList),
