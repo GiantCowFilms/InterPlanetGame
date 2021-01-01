@@ -1,4 +1,3 @@
-use futures::sink::Sink;
 use futures::{SinkExt, StreamExt};
 use ipg_core::game::Game;
 use ipg_core::protocol::messages::{GameMetadata, MessageType};
@@ -7,15 +6,14 @@ use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 use std::iter;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::pin::Pin;
 use std::sync::Arc;
 use tokio::{
     net::{TcpListener, TcpStream},
     runtime::Runtime,
-    sync::{Mutex, RwLock},
+    sync::{mpsc, Mutex, RwLock},
 };
 use tokio_tungstenite::accept_async;
-use tokio_tungstenite::tungstenite::{Error, Message};
+use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 pub mod connection;
 pub mod map_manager;
@@ -28,7 +26,7 @@ pub struct GameServer {
     port: u16,
     games: RwLock<HashMap<String, Arc<Mutex<GameExecutor>>>>,
     // In theory, the sinks will end up all being the same type, meaning static dispatch is not out of the quesiton.
-    connections: Mutex<Vec<Arc<Mutex<Pin<Box<dyn Sink<Message, Error = Error> + Send + Sync>>>>>>,
+    connections: Mutex<Vec<mpsc::Sender<Message>>>,
     map_manager: Mutex<Box<dyn map_manager::MapManager + Send>>,
 }
 
@@ -103,12 +101,13 @@ impl GameServer {
     }
 
     async fn broadcast(&self, message: Message) {
-        for connection in self.connections.lock().await.iter() {
+        let mut connections = self.connections.lock().await;
+        for connection in connections.iter_mut() {
             // TODO we should record when message sending fails (or even better
             // retry). Failing silently is not good, since it may make it
             // difficult to debug any issues that stem from message transport
             // failure.
-            let _ = connection.lock().await.as_mut().send(message.clone()).await;
+            let _ = connection.send(message.clone()).await;
             // Per optimization possibilty - currently we wait for every message to bet sent fully before sending this next one.
             // This would be much slower then concurrently sending all the messages
         }
@@ -128,17 +127,21 @@ impl GameServer {
     /// and broadcast the messages the client requires.
     ///
     async fn handle_stream<'a>(instance: Arc<GameServer>, ws_stream: WebSocketStream<TcpStream>) {
-        let (sink, mut stream) = ws_stream.split();
-        let sink_mtx = Arc::new(Mutex::new(
-            Box::pin(sink) as Pin<Box<(dyn Sink<Message, Error = Error> + Send + Sync)>>
-        ));
+        let (mut sink, mut stream) = ws_stream.split();
+        // Create mpsc for sending to client so we can share the sender around
+        let (tx, mut rx) = mpsc::channel(128);
+        tokio::spawn(async move {
+            while let Some(message) = rx.next().await {
+                let _ = sink.send(message).await;
+            }
+        });
         // New scope to make sure the lock gets dropped immediately
         {
-            instance.connections.lock().await.push(sink_mtx.clone());
+            instance.connections.lock().await.push(tx.clone());
         };
         println!("Connection opened.");
         tokio::spawn(async move {
-            let mut connection = GameConnection::new(instance.clone(), sink_mtx.clone());
+            let mut connection = GameConnection::new(instance.clone(), tx);
             connection.handle_new_client().await;
             while let Some(Ok(message)) = stream.next().await {
                 let message = message;

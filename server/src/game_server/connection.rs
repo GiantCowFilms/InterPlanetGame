@@ -1,32 +1,25 @@
 use crate::GameServer;
-use futures::Sink;
-use futures::{stream, SinkExt, StreamExt};
+use futures::{stream, StreamExt};
 use ipg_core::game::{Game, GameEvent, GameExecutor, Player};
 use ipg_core::protocol::messages::{GameList, GameMetadata, MessageType};
 use std::future::Future;
-use std::{pin::Pin, sync::Arc};
-use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::{Error, Message};
+use std::sync::Arc;
+use tokio::sync::{mpsc::Sender, Mutex};
+use tokio_tungstenite::tungstenite::Message;
 
 pub trait Captures<'a> {}
 
 impl<'a, T> Captures<'a> for T {}
 
-pub struct GameConnection<S>
-where
-    S: Sink<Message, Error = Error> + Send + ?Sized,
-{
+pub struct GameConnection {
     player: Option<Player>,
     current_game: Option<Arc<Mutex<GameExecutor>>>,
-    sink: Arc<Mutex<Pin<Box<S>>>>,
+    sink: Sender<Message>,
     instance: Arc<GameServer>,
 }
 
-impl<S> GameConnection<S>
-where
-    S: Sink<Message, Error = Error> + Send + 'static + ?Sized,
-{
-    pub fn new(instance: Arc<GameServer>, sink: Arc<Mutex<Pin<Box<S>>>>) -> Self {
+impl GameConnection {
+    pub fn new(instance: Arc<GameServer>, sink: Sender<Message>) -> Self {
         GameConnection {
             player: None,
             current_game: None,
@@ -35,15 +28,13 @@ where
         }
     }
 
-    fn handle_game_event(sink: Arc<Mutex<Pin<Box<S>>>>, game: &mut Game, event: &GameEvent) {
+    fn handle_game_event(mut sink: Sender<Message>, game: &mut Game, event: &GameEvent) {
         //let mut executor = executor.lock().unwrap();
-        let sink = sink.clone();
         match event {
             GameEvent::Start => {
                 let seralized = serde_json::to_string(&MessageType::StartGame).unwrap();
                 let seralized2 = serde_json::to_string(&MessageType::Game(game.clone())).unwrap();
                 tokio::spawn(async move {
-                    let mut sink = sink.lock().await;
                     let _ = sink.send(Message::from(seralized)).await;
                     let _ = sink.send(Message::from(seralized2)).await;
                 });
@@ -54,7 +45,6 @@ where
                 // sink.start_send(Message::from(seralized));
                 let seralized = serde_json::to_string(&MessageType::Game(game.clone())).unwrap();
                 tokio::spawn(async move {
-                    let mut sink = sink.lock().await;
                     let _ = sink.send(Message::from(seralized)).await;
                 });
             }
@@ -62,7 +52,6 @@ where
                 let seralized =
                     serde_json::to_string(&MessageType::GamePlayers(game.players.clone())).unwrap();
                 tokio::spawn(async move {
-                    let mut sink = sink.lock().await;
                     let _ = sink.send(Message::from(seralized)).await;
                 });
             }
@@ -78,8 +67,8 @@ where
             match result {
                 Ok(_) => (),
                 Err(e) => {
-                    let mut sink = self.sink.lock().await;
-                    let _ = sink
+                    let _ = self
+                        .sink
                         .send(Message::from(
                             serde_json::to_string(&MessageType::Error(e)).unwrap(),
                         ))
@@ -101,9 +90,8 @@ where
         //Inside message handlers, always lock sinks first to avoid deadlocks
         match message_data {
             MessageType::Ping => {
-                let mut sink = self.sink.lock().await;
                 let seralized = serde_json::to_string(&MessageType::Pong);
-                let _ = sink.send(Message::from(seralized.unwrap())).await;
+                let _ = self.sink.send(Message::from(seralized.unwrap())).await;
                 Ok(())
             }
             MessageType::CreateGame(game_settings) => {
@@ -119,12 +107,10 @@ where
                 Ok(())
             }
             MessageType::ExitGame => {
-                let mut sink = self.sink.lock().await;
-                let _ = sink.send(Message::from("ExitGame")).await;
+                let _ = self.sink.send(Message::from("ExitGame")).await;
                 Ok(())
             }
             MessageType::EnterGame(game_id) => {
-                let mut sink = self.sink.lock().await;
                 let mut games = self.instance.games.write().await;
                 let game_executor_mtx = games.get_mut(&game_id).ok_or_else(|| {
                     format!("Could not find a game with an id of \"{}\"", &game_id)
@@ -147,11 +133,11 @@ where
                     },
                 ));
                 let seralized = serde_json::to_string(&MessageType::EnterGame(game_id.clone()));
-                let _ = sink.send(Message::from(seralized.unwrap())).await;
+                let _ = self.sink.send(Message::from(seralized.unwrap())).await;
                 if let Some(player) = &self.player {
                     let seralized =
                         serde_json::to_string(&MessageType::Possession(player.possession as u32));
-                    let _ = sink.send(Message::from(seralized.unwrap())).await;
+                    let _ = self.sink.send(Message::from(seralized.unwrap())).await;
                 };
                 if game_executor.game.state.is_some() {
                     // Send game state
@@ -163,13 +149,13 @@ where
                     game_executor.step_to(time);
                     let seralized =
                         serde_json::to_string(&MessageType::Game(game_executor.game.clone()));
-                    let _ = sink.send(Message::from(seralized.unwrap())).await;
+                    let _ = self.sink.send(Message::from(seralized.unwrap())).await;
                 } else {
                     // Otherwise just send the player list
                     let seralized = serde_json::to_string(&MessageType::GamePlayers(
                         game_executor.game.players.clone(),
                     ));
-                    let _ = sink.send(Message::from(seralized.unwrap())).await;
+                    let _ = self.sink.send(Message::from(seralized.unwrap())).await;
                 }
 
                 self.current_game = Some(game_executor_mtx.clone());
@@ -217,9 +203,7 @@ where
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
                     .as_millis();
-                let mut sink = self.sink.lock().await;
-                let sink = sink.as_mut();
-                let _ = sink.start_send(Message::from(
+                let _ = self.sink.send(Message::from(
                     serde_json::to_string(&MessageType::Time(time)).unwrap(),
                 ));
                 Ok(())
@@ -229,12 +213,11 @@ where
     }
 
     pub async fn handle_new_client(&mut self) {
-        let mut sink = self.sink.lock().await;
         let games = self.instance.games.read().await;
         let map_manager = self.instance.map_manager.lock().await;
         let message = &MessageType::MapList(map_manager.maps());
         let seralized = serde_json::to_string(message);
-        let _ = sink.send(Message::from(seralized.unwrap())).await;
+        let _ = self.sink.send(Message::from(seralized.unwrap())).await;
         let games_metadata = stream::iter(games.iter())
             .then(async move |(key, val)| {
                 let game_exec = val.lock().await;
@@ -249,7 +232,7 @@ where
         let seralized = serde_json::to_string(&MessageType::GameList(GameList {
             games: games_metadata,
         }));
-        let _ = sink.send(Message::from(seralized.unwrap())).await;
+        let _ = self.sink.send(Message::from(seralized.unwrap())).await;
     }
 
     pub async fn handle_client_exit(&mut self) {
