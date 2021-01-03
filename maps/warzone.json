@@ -1,0 +1,762 @@
+{
+    "standard": 0.4,
+    "name": "Warzone",
+    "size": {
+        "x": 1200,
+        "y": 1000
+    },
+    "planets": [
+        {
+            "possession": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+            ],
+            "radius": 80,
+            "x": 888,
+            "y": 252,
+            "start_value": 125,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2
+            ],
+            "radius": 80,
+            "x": 223,
+            "y": 758,
+            "start_value": 125,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 15,
+            "x": 259,
+            "y": 642,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 15,
+            "x": 363,
+            "y": 762,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 15,
+            "x": 274,
+            "y": 892,
+            "start_value": 35,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 15,
+            "x": 117,
+            "y": 881,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 15,
+            "x": 107,
+            "y": 771,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 118,
+            "y": 641,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 15,
+            "x": 921,
+            "y": 130,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 15,
+            "x": 1043,
+            "y": 235,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 1037,
+            "y": 399,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                8
+            ],
+            "radius": 15,
+            "x": 801,
+            "y": 365,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 15,
+            "x": 715,
+            "y": 272,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 798,
+            "y": 158,
+            "start_value": 30,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                5,
+                5,
+                5,
+                5
+            ],
+            "radius": 50,
+            "x": 175,
+            "y": 222,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 50,
+            "x": 435,
+            "y": 235,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 50,
+            "x": 407,
+            "y": 480,
+            "start_value": 25,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                5,
+                5,
+                5,
+                5
+            ],
+            "radius": 50,
+            "x": 643,
+            "y": 529,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                4,
+                4,
+                4,
+                4,
+                4
+            ],
+            "radius": 50,
+            "x": 891,
+            "y": 728,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 50,
+            "x": 639,
+            "y": 676,
+            "start_value": 25,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 50,
+            "x": 953,
+            "y": 940,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 50,
+            "x": 1099,
+            "y": 707,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 40,
+            "x": 546,
+            "y": 581,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 40,
+            "x": 529,
+            "y": 365,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 40,
+            "x": 229,
+            "y": 72,
+            "start_value": 15,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 40,
+            "x": 87,
+            "y": 52,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 40,
+            "x": 411,
+            "y": 78,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                3,
+                3,
+                3,
+                3,
+                3,
+                3
+            ],
+            "radius": 20,
+            "x": 274,
+            "y": 193,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                3,
+                3,
+                3,
+                3,
+                3,
+                3
+            ],
+            "radius": 20,
+            "x": 381,
+            "y": 162,
+            "start_value": 45,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                5,
+                6,
+                7,
+                8
+            ],
+            "radius": 20,
+            "x": 277,
+            "y": 373,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                3,
+                3,
+                3,
+                3,
+                3,
+                3
+            ],
+            "radius": 20,
+            "x": 428,
+            "y": 365,
+            "start_value": 45,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                3,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 577,
+            "y": 451,
+            "start_value": 10,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 734,
+            "y": 589,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 732,
+            "y": 713,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 827,
+            "y": 823,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 1160,
+            "y": 959,
+            "start_value": 80,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                3,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 994,
+            "y": 802,
+            "start_value": 45,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 1109,
+            "y": 811,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 1030,
+            "y": 863,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 1006,
+            "y": 723,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 815,
+            "y": 644,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 971,
+            "y": 630,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 739,
+            "y": 811,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 40,
+            "x": 815,
+            "y": 934,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 20,
+            "x": 53,
+            "y": 305,
+            "start_value": 5,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 30,
+            "x": 316,
+            "y": 280,
+            "start_value": 25,
+            "multiplier": 1.0
+        },
+        {
+            "possession": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "radius": 30,
+            "x": 1085,
+            "y": 958,
+            "start_value": 25,
+            "multiplier": 1.0
+        }
+    ]
+}
