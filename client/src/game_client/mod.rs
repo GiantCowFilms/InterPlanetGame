@@ -308,7 +308,9 @@ impl GameClient {
                 current.exec.step_to(time);
             }
             if let ActiveGame::Joined(current) = &mut self.current_game {
-                current.render.render_galaxy(&current.exec.game)?;
+                current
+                    .render
+                    .render(&current.exec.game, &current.selected_planet)?;
             };
             Ok(())
         } else {

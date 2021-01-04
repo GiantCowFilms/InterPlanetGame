@@ -1,10 +1,11 @@
-use ipg_core::game::{map::Map, Galaxy, Game, Move};
-use std::f64::consts::PI;
+use ipg_core::game::{map::Map, Galaxy, Game, Move, Planet};
 use std::rc::Rc;
+use std::{f64::consts::PI, marker::PhantomData};
 use wasm_bindgen::{JsCast, JsValue};
 // use wasm_bindgen::prelude::*;
 use web_sys::{
     CanvasRenderingContext2d, HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader,
+    WebGlVertexArrayObject,
 };
 
 macro_rules! log {
@@ -31,6 +32,7 @@ pub struct GameRender {
     context_2d: CanvasRenderingContext2d,
     completed_move_index: usize,
     move_renders: Vec<MoveRender>,
+    selection_render: SelectionRender,
 }
 
 // Replicated in ts\conts.ts
@@ -100,6 +102,44 @@ void main()
     }
 }
 
+"#;
+
+static SELECTION_VERTEX: &'static str = r#"#version 300 es
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+layout (location = 0) in vec2 pos;
+void main()
+{
+    gl_Position = vec4(pos, 1.0, 1.0);
+}
+"#;
+
+static SELECTION_FRAGMENT: &'static str = r#"#version 300 es
+#ifdef GL_ES
+precision mediump float;
+#endif
+#define PI 3.1415926538
+
+#define RING_WIDTH 8.0
+#define RING_GAP 4.0
+layout(location = 0) out vec4 color;
+uniform vec2 center;
+uniform float radius;
+uniform vec2 dimensions;
+
+void main()
+{
+    float ringSize = radius + RING_WIDTH +  RING_GAP;
+    vec2 pixelCoord = gl_FragCoord.xy;
+    float dist = distance(vec2(center.x,dimensions.y - center.y),pixelCoord);
+    if ((dist > ringSize) || (dist < ringSize - RING_WIDTH)) {
+        color = vec4(0.0,0.0,0.0,0.0);
+    } else {
+        color = vec4(0.0,1.0,1.0,0.5);
+    }
+}
 "#;
 
 pub fn compile_shader(
@@ -219,15 +259,48 @@ impl GameRender {
             .expect("Unwrap 2d context")
             .dyn_into::<CanvasRenderingContext2d>()?;
         let ship_shader = create_ship_shader(&gl_context)?;
-
+        let gl_ctx = Rc::new(gl_context);
         Ok(Self {
             canvases: [canvas_top, canvas_bottom],
-            gl: Rc::new(gl_context),
+            gl: gl_ctx.clone(),
             ship_shader,
             context_2d,
             completed_move_index: 0,
             move_renders: Vec::new(),
+            selection_render: SelectionRender::new(gl_ctx)?,
         })
+    }
+
+    pub fn render(&mut self, game: &Game, selected_planet: &Option<Planet>) -> Result<(), JsValue> {
+        self.render_galaxy(game)?;
+        if let Some(state) = &game.state {
+            self.setup_gl_render()?;
+            self.render_ships(state, &game.map)?;
+            if let Some(selection) = selected_planet {
+                self.render_selection(selection)?;
+            }
+        };
+        Ok(())
+    }
+
+    pub fn setup_gl_render(&self) -> Result<(), String> {
+        self.gl.cull_face(WebGl2RenderingContext::FRONT_AND_BACK);
+        self.gl.disable(WebGl2RenderingContext::DEPTH_TEST);
+        self.gl.enable(WebGl2RenderingContext::BLEND);
+        self.gl.blend_func(
+            WebGl2RenderingContext::SRC_ALPHA,
+            WebGl2RenderingContext::ONE_MINUS_SRC_ALPHA,
+        );
+        check_webgl!(self.gl);
+        self.gl.viewport(
+            0,
+            0,
+            self.canvases[0].width() as i32,
+            self.canvases[0].height() as i32,
+        );
+        self.gl.clear_color(0.0, 0.0, 0.0, 0.0);
+        check_webgl!(self.gl);
+        Ok(())
     }
 
     pub fn render_galaxy(&mut self, game: &Game) -> Result<(), JsValue> {
@@ -260,7 +333,6 @@ impl GameRender {
                         planet.y as f64,
                     )?;
                 }
-                self.render_ships(state, &game.map)?;
             }
             None => {
                 render_map(
@@ -275,22 +347,18 @@ impl GameRender {
         Ok(())
     }
 
-    pub fn render_ships(&mut self, galaxy: &Galaxy, map: &Map) -> Result<(), String> {
-        self.gl.cull_face(WebGl2RenderingContext::FRONT_AND_BACK);
-        self.gl.viewport(
-            0,
-            0,
+    pub fn render_selection(&mut self, selected_planet: &Planet) -> Result<(), String> {
+        self.selection_render.set_size(
             self.canvases[0].width() as i32,
             self.canvases[0].height() as i32,
         );
+        self.selection_render.render(selected_planet);
+        Ok(())
+    }
 
-        //Shader Setup
-        // let vertex_shader = compile_shader(&self.gl,WebGl2RenderingContext::VERTEX_SHADER,SHIP_VERTEX)?;
-        // let fragment_shader = compile_shader(&self.gl,WebGl2RenderingContext::FRAGMENT_SHADER,SHIP_FRAGMENT)?;
-        // let program = link_program(&self.gl,&vertex_shader,&fragment_shader)?;
+    pub fn render_ships(&mut self, galaxy: &Galaxy, map: &Map) -> Result<(), String> {
         self.gl.use_program(Some(&self.ship_shader));
         check_webgl!(self.gl);
-
         for game_move in (&galaxy.moves)
             .iter()
             .skip(self.completed_move_index)
@@ -427,6 +495,39 @@ impl MoveRender {
             check_webgl!(gl_ctx);
         }
 
+        // Add vertex & position information to the VAO
+        gl_ctx.bind_buffer(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            Some(&ship_positions_vbo),
+        );
+        gl_ctx.vertex_attrib_pointer_with_i32(
+            SHIP_START_POS,
+            2,
+            WebGl2RenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
+        check_webgl!(gl_ctx);
+        gl_ctx.enable_vertex_attrib_array(SHIP_START_POS);
+        check_webgl!(gl_ctx);
+        gl_ctx.vertex_attrib_divisor(SHIP_START_POS, 1);
+        check_webgl!(gl_ctx);
+
+        gl_ctx.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&ship_verts_vbo));
+
+        gl_ctx.enable_vertex_attrib_array(SHIP_VERTS);
+        check_webgl!(gl_ctx);
+
+        gl_ctx.vertex_attrib_pointer_with_i32(
+            SHIP_VERTS,
+            2,
+            WebGl2RenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
+
         Ok(MoveRender {
             game_move,
             gl: gl_ctx,
@@ -437,40 +538,8 @@ impl MoveRender {
     }
 
     pub fn render(&self) -> Result<(), String> {
-        self.gl.bind_buffer(
-            WebGl2RenderingContext::ARRAY_BUFFER,
-            Some(&self.positions_vbo),
-        );
-        self.gl.vertex_attrib_pointer_with_i32(
-            SHIP_START_POS,
-            2,
-            WebGl2RenderingContext::FLOAT,
-            false,
-            0,
-            0,
-        );
+        self.gl.bind_vertex_array(Some(&self.verts_vao));
         check_webgl!(self.gl);
-        self.gl.enable_vertex_attrib_array(SHIP_START_POS);
-        check_webgl!(self.gl);
-        self.gl.vertex_attrib_divisor(SHIP_START_POS, 1);
-        check_webgl!(self.gl);
-
-        self.gl
-            .bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&self.verts_vbo));
-
-        self.gl.enable_vertex_attrib_array(SHIP_VERTS);
-        check_webgl!(self.gl);
-
-        self.gl.vertex_attrib_pointer_with_i32(
-            SHIP_VERTS,
-            2,
-            WebGl2RenderingContext::FLOAT,
-            false,
-            0,
-            0,
-        );
-        check_webgl!(self.gl);
-
         self.gl.draw_arrays_instanced(
             WebGl2RenderingContext::TRIANGLES,
             0,
@@ -491,5 +560,161 @@ impl Drop for MoveRender {
         //self.gl.delete_buffer(start_times_vbo.as_ref());
         self.gl.delete_buffer(Some(&self.verts_vbo));
         self.gl.delete_vertex_array(Some(&self.verts_vao));
+    }
+}
+
+struct SelectionRender {
+    gl: Rc<WebGl2RenderingContext>,
+    program: WebGlProgram,
+    vao: WebGlVertexArrayObject,
+    _verts_vbo: Buffer<f32>,
+}
+
+impl SelectionRender {
+    pub fn new(gl_ctx: Rc<WebGl2RenderingContext>) -> Result<Self, String> {
+        // Positions
+        let square_verts: Vec<f32> = vec![
+            -1.0, -1.0, //
+            1.0, -1.0, //
+            -1.0, 1.0, //
+            //
+            1.0, -1.0, //
+            -1.0, 1.0, //
+            1.0, 1.0, //
+        ];
+        let verts_vbo = Buffer::new(square_verts, gl_ctx.clone())?;
+
+        // Program
+        let program = SelectionRender::create_shader(&*gl_ctx)?;
+
+        //VAO
+        let vao = gl_ctx
+            .create_vertex_array()
+            .ok_or("Could not vertex array")?;
+
+        gl_ctx.bind_vertex_array(Some(&vao));
+        check_webgl!(gl_ctx);
+
+        // Add vertex information to the VAO
+        const SELECT_VERTS: u32 = 0;
+
+        gl_ctx.enable_vertex_attrib_array(SELECT_VERTS);
+
+        gl_ctx.bind_buffer(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            Some(&verts_vbo.get_buf()),
+        );
+        gl_ctx.vertex_attrib_pointer_with_i32(
+            SELECT_VERTS,
+            2,
+            WebGl2RenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
+
+        Ok(SelectionRender {
+            gl: gl_ctx,
+            program,
+            vao,
+            _verts_vbo: verts_vbo,
+        })
+    }
+
+    pub fn set_size(&self, x: i32, y: i32) {
+        self.gl.use_program(Some(&self.program));
+        let dimensions_uniform = self.gl.get_uniform_location(&self.program, "dimensions");
+        self.gl
+            .uniform2f(dimensions_uniform.as_ref(), x as f32, y as f32);
+    }
+
+    fn create_shader(gl_ctx: &WebGl2RenderingContext) -> Result<WebGlProgram, String> {
+        let vertex_shader = compile_shader(
+            gl_ctx,
+            WebGl2RenderingContext::VERTEX_SHADER,
+            SELECTION_VERTEX,
+        )?;
+        let fragment_shader = compile_shader(
+            gl_ctx,
+            WebGl2RenderingContext::FRAGMENT_SHADER,
+            SELECTION_FRAGMENT,
+        )?;
+        let program = link_program(gl_ctx, &vertex_shader, &fragment_shader)?;
+        Ok(program)
+    }
+
+    fn render(&self, selected_planet: &Planet) {
+        self.gl.use_program(Some(&self.program));
+        self.gl.bind_vertex_array(Some(&self.vao));
+        // Set Uniforms
+        let center_uniform = self.gl.get_uniform_location(&self.program, "center");
+        if center_uniform.is_none() {
+            log!("WARNING: Unable to find uniform center.");
+        }
+        self.gl.uniform2f(
+            center_uniform.as_ref(),
+            selected_planet.x as f32,
+            selected_planet.y as f32,
+        );
+        let radius_uniform = self.gl.get_uniform_location(&self.program, "radius");
+        if radius_uniform.is_none() {
+            log!("WARNING: Unable to find uniform radius.");
+        }
+        self.gl
+            .uniform1f(radius_uniform.as_ref(), selected_planet.radius as f32);
+        // Draw
+        self.gl.draw_arrays(
+            WebGl2RenderingContext::TRIANGLES,
+            0,
+            6, // This should be the number of verts in the data defined in the constructor
+        );
+    }
+}
+
+impl Drop for SelectionRender {
+    fn drop(&mut self) {
+        self.gl.delete_vertex_array(Some(&self.vao));
+        self.gl.delete_program(Some(&self.program));
+    }
+}
+
+struct Buffer<T> {
+    buf: web_sys::WebGlBuffer,
+    gl: Rc<WebGl2RenderingContext>,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Buffer<T> {
+    pub fn get_buf(&self) -> &web_sys::WebGlBuffer {
+        return &self.buf;
+    }
+    pub fn new(data: Vec<T>, gl_ctx: Rc<WebGl2RenderingContext>) -> Result<Self, String> {
+        let buffer_obj = gl_ctx.create_buffer().ok_or("Could not create buffer")?;
+        gl_ctx.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer_obj));
+        check_webgl!(gl_ctx);
+        unsafe {
+            gl_ctx.buffer_data_with_u8_array(
+                WebGl2RenderingContext::ARRAY_BUFFER,
+                std::slice::from_raw_parts(
+                    data.as_ptr() as *const u8,
+                    data.len() * std::mem::size_of::<T>(),
+                ),
+                WebGl2RenderingContext::STATIC_DRAW,
+            );
+            check_webgl!(gl_ctx);
+        }
+
+        Ok(Buffer {
+            buf: buffer_obj,
+            gl: gl_ctx,
+            _phantom: PhantomData,
+        })
+    }
+}
+
+impl<T> Drop for Buffer<T> {
+    fn drop(&mut self) {
+        //Cleanup
+        self.gl.delete_buffer(Some(&self.buf));
     }
 }
