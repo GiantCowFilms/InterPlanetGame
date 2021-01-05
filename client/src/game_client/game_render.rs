@@ -28,7 +28,7 @@ macro_rules! check_webgl {
 pub struct GameRender {
     canvases: [HtmlCanvasElement; 2],
     gl: Rc<WebGl2RenderingContext>,
-    ship_shader: WebGlProgram,
+    ship_shader: Rc<WebGlProgram>,
     context_2d: CanvasRenderingContext2d,
     completed_move_index: usize,
     move_renders: Vec<MoveRender>,
@@ -260,6 +260,7 @@ impl GameRender {
             .dyn_into::<CanvasRenderingContext2d>()?;
         let ship_shader = create_ship_shader(&gl_context)?;
         let gl_ctx = Rc::new(gl_context);
+        let ship_shader = Rc::new(ship_shader);
         Ok(Self {
             canvases: [canvas_top, canvas_bottom],
             gl: gl_ctx.clone(),
@@ -364,61 +365,18 @@ impl GameRender {
             .skip(self.completed_move_index)
             .filter(|game_move| game_move.end_time() > galaxy.time)
         {
-            self.move_renders
-                .push(MoveRender::new(game_move.clone(), self.gl.clone(), map)?);
+            self.move_renders.push(MoveRender::new(
+                game_move.clone(),
+                self.gl.clone(),
+                self.ship_shader.clone(),
+                map,
+            )?);
             self.completed_move_index += 1;
         }
         self.move_renders
             .retain(|move_render| move_render.game_move.end_time() > galaxy.time);
-        for move_render in self.move_renders.iter_mut() {
-            let game_move = &move_render.game_move;
-            // Uniforms
-            if let Some(travel_time_loc) = self
-                .gl
-                .get_uniform_location(&self.ship_shader, "travel_time")
-            {
-                self.gl
-                    .uniform1ui(Some(&travel_time_loc), galaxy.time - game_move.start_time);
-            } else {
-                log!("WARNING: Unable to find uniform travel_time.");
-            };
-            let destination_loc = self
-                .gl
-                .get_uniform_location(&self.ship_shader, "destination")
-                .ok_or("Unable to find uniform.")?;
-            self.gl.uniform2fv_with_f32_array(
-                Some(&destination_loc),
-                vec![
-                    game_move.to.x as f32,
-                    (map.size.y as f32) - game_move.to.y as f32,
-                ]
-                .as_slice(),
-            );
-            if let Some(res_x) = self.gl.get_uniform_location(&self.ship_shader, "res_x") {
-                self.gl.uniform1ui(Some(&res_x), map.size.x);
-            } else {
-                log!("WARNING: Unable to find uniform res_x.");
-            };
-            if let Some(res_y) = self.gl.get_uniform_location(&self.ship_shader, "res_y") {
-                self.gl.uniform1ui(Some(&res_y), map.size.y);
-            } else {
-                log!("WARNING: Unable to find uniform res_y.");
-            };
-            if let Some(to_radius) = self.gl.get_uniform_location(&self.ship_shader, "to_radius") {
-                self.gl.uniform1f(Some(&to_radius), game_move.to.radius);
-            } else {
-                log!("WARNING: Unable to find uniform to_radius.");
-            };
-            if let Some(from_radius) = self
-                .gl
-                .get_uniform_location(&self.ship_shader, "from_radius")
-            {
-                self.gl.uniform1f(Some(&from_radius), game_move.from.radius);
-            } else {
-                log!("WARNING: Unable to find uniform from_radius.");
-            };
-
-            move_render.render()?;
+        for move_render in self.move_renders.iter() {
+            move_render.render(&galaxy, map)?;
         }
         Ok(())
     }
@@ -432,8 +390,11 @@ static SHIP_VERTS: u32 = 0;
 pub struct MoveRender {
     game_move: Move,
     gl: Rc<WebGl2RenderingContext>,
-    positions_vbo: web_sys::WebGlBuffer,
-    verts_vbo: web_sys::WebGlBuffer,
+    program: Rc<WebGlProgram>,
+    // These fields are needed to prevent the buffer from being dropped (which will cause them to be cleaned up)
+    // before the MoveRender is dropped
+    positions_vbo: Buffer<f32>,
+    verts_vbo: Buffer<f32>,
     verts_vao: web_sys::WebGlVertexArrayObject,
 }
 
@@ -441,6 +402,7 @@ impl MoveRender {
     pub fn new(
         game_move: Move,
         gl_ctx: Rc<WebGl2RenderingContext>,
+        program: Rc<WebGlProgram>,
         map: &Map,
     ) -> Result<MoveRender, String> {
         let ship_count = game_move.armada_size;
@@ -465,40 +427,33 @@ impl MoveRender {
         check_webgl!(gl_ctx);
 
         //Ship Positions
-        let ship_positions_vbo = gl_ctx.create_buffer().ok_or("Could not create buffer")?;
-        gl_ctx.bind_buffer(
-            WebGl2RenderingContext::ARRAY_BUFFER,
-            Some(&ship_positions_vbo),
-        );
-        unsafe {
-            gl_ctx.buffer_data_with_u8_array(
-                WebGl2RenderingContext::ARRAY_BUFFER,
-                std::slice::from_raw_parts(positions.as_ptr() as *const u8, positions.len() * 4),
-                WebGl2RenderingContext::STATIC_DRAW,
-            );
-        };
+        let ship_positions_vbo = Buffer::new(positions, gl_ctx.clone())?;
 
         // Ship Verticies
         let ship_verts: Vec<f32> = vec![-0.25f32, -0.5, 0.25, -0.5, 0.0, 0.5]
             .iter()
             .map(|f| f / 80.0)
             .collect();
-        let ship_verts_vbo = gl_ctx.create_buffer().ok_or("Could not create buffer")?;
-        gl_ctx.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&ship_verts_vbo));
+        let ship_verts_vbo = Buffer::new(ship_verts, gl_ctx.clone())?;
+
+        // Current WIP: Moving to the new buffer abstraction
+
+        gl_ctx.enable_vertex_attrib_array(SHIP_VERTS);
         check_webgl!(gl_ctx);
-        unsafe {
-            gl_ctx.buffer_data_with_u8_array(
-                WebGl2RenderingContext::ARRAY_BUFFER,
-                std::slice::from_raw_parts(ship_verts.as_ptr() as *const u8, ship_verts.len() * 4),
-                WebGl2RenderingContext::STATIC_DRAW,
-            );
-            check_webgl!(gl_ctx);
-        }
+
+        gl_ctx.vertex_attrib_pointer_with_i32(
+            SHIP_VERTS,
+            2,
+            WebGl2RenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
 
         // Add vertex & position information to the VAO
         gl_ctx.bind_buffer(
             WebGl2RenderingContext::ARRAY_BUFFER,
-            Some(&ship_positions_vbo),
+            Some(&ship_positions_vbo.get_buf()),
         );
         gl_ctx.vertex_attrib_pointer_with_i32(
             SHIP_START_POS,
@@ -513,33 +468,68 @@ impl MoveRender {
         check_webgl!(gl_ctx);
         gl_ctx.vertex_attrib_divisor(SHIP_START_POS, 1);
         check_webgl!(gl_ctx);
-
-        gl_ctx.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&ship_verts_vbo));
-
-        gl_ctx.enable_vertex_attrib_array(SHIP_VERTS);
-        check_webgl!(gl_ctx);
-
-        gl_ctx.vertex_attrib_pointer_with_i32(
-            SHIP_VERTS,
-            2,
-            WebGl2RenderingContext::FLOAT,
-            false,
-            0,
-            0,
-        );
-
         Ok(MoveRender {
             game_move,
             gl: gl_ctx,
+            program,
             positions_vbo: ship_positions_vbo,
             verts_vbo: ship_verts_vbo,
             verts_vao: vao,
         })
     }
 
-    pub fn render(&self) -> Result<(), String> {
+    pub fn render(&self, galaxy: &Galaxy, map: &Map) -> Result<(), String> {
         self.gl.bind_vertex_array(Some(&self.verts_vao));
+        // Uniforms
+        if let Some(travel_time_loc) = self.gl.get_uniform_location(&self.program, "travel_time") {
+            self.gl.uniform1ui(
+                Some(&travel_time_loc),
+                galaxy.time - self.game_move.start_time,
+            );
+        } else {
+            log!("WARNING: Unable to find uniform travel_time.");
+        };
         check_webgl!(self.gl);
+
+        // These uniforms need to be set every render (because we re-use the program between move renders)
+        // Ideally the "get_uniform_location" calls should be moved out of the render loop though
+
+        let destination_loc = self
+            .gl
+            .get_uniform_location(&self.program, "destination")
+            .ok_or("Unable to find uniform.")?;
+        self.gl.uniform2fv_with_f32_array(
+            Some(&destination_loc),
+            vec![
+                self.game_move.to.x as f32,
+                (map.size.y as f32) - self.game_move.to.y as f32,
+            ]
+            .as_slice(),
+        );
+        if let Some(res_x) = self.gl.get_uniform_location(&self.program, "res_x") {
+            self.gl.uniform1ui(Some(&res_x), map.size.x);
+        } else {
+            log!("WARNING: Unable to find uniform res_x.");
+        };
+        if let Some(res_y) = self.gl.get_uniform_location(&self.program, "res_y") {
+            self.gl.uniform1ui(Some(&res_y), map.size.y);
+        } else {
+            log!("WARNING: Unable to find uniform res_y.");
+        };
+        if let Some(to_radius) = self.gl.get_uniform_location(&self.program, "to_radius") {
+            self.gl
+                .uniform1f(Some(&to_radius), self.game_move.to.radius);
+        } else {
+            log!("WARNING: Unable to find uniform to_radius.");
+        };
+        if let Some(from_radius) = self.gl.get_uniform_location(&self.program, "from_radius") {
+            self.gl
+                .uniform1f(Some(&from_radius), self.game_move.from.radius);
+        } else {
+            log!("WARNING: Unable to find uniform from_radius.");
+        };
+
+        // Draw
         self.gl.draw_arrays_instanced(
             WebGl2RenderingContext::TRIANGLES,
             0,
@@ -556,9 +546,6 @@ impl Drop for MoveRender {
     fn drop(&mut self) {
         log!("dropping move at {}", self.game_move.start_time);
         //Cleanup
-        self.gl.delete_buffer(Some(&self.positions_vbo));
-        //self.gl.delete_buffer(start_times_vbo.as_ref());
-        self.gl.delete_buffer(Some(&self.verts_vbo));
         self.gl.delete_vertex_array(Some(&self.verts_vao));
     }
 }
