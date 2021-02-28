@@ -5,7 +5,7 @@ import { mode, ModeContext } from './state/mode';
 import PlayerName from './components/PlayerName';
 import { useGameList } from './connection/hooks';
 import { gameUrl } from './gameInfo';
-import ConnectionError from './components/ConnectionError';
+import ConnectionStatus from './components/ConnectionStatus';
 type game_state = {
 
 }
@@ -63,22 +63,23 @@ function Root() {
     const [playerName, setPlayerName] = useState(undefined);
     return <>
         <div className="title">Inter-Planet Game</div>
-        <ConnectionError />
-        <ModeContext.Provider value={{
-            mode,
-            setMode
-        }} >
-            {
-                mode.type === "browse" ?
-                    <GameList />
-                    : mode.type === "game" ?
-                        playerName !== undefined ?
-                            <GameWindow game={mode.game} />
-                            : <PlayerName onSubmit={setPlayerName} />
-                        :
-                        undefined
-            }
-        </ModeContext.Provider>
+        <ConnectionStatus>
+            <ModeContext.Provider value={{
+                mode,
+                setMode
+            }} >
+                {
+                    mode.type === "browse" ?
+                        <GameList />
+                        : mode.type === "game" ?
+                            playerName !== undefined ?
+                                <GameWindow game={mode.game} />
+                                : <PlayerName onSubmit={setPlayerName} />
+                            :
+                            undefined
+                }
+            </ModeContext.Provider>
+        </ConnectionStatus>
     </>;
 }
 
