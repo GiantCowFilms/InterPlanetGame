@@ -26,7 +26,7 @@ const ConnectionStatus: React.FC = ({ children }) => {
         return <div className="card card-inside inner-content">
             <h3>Connecting...</h3>
             <p>
-                Attempting to reach the game server. If this takes a long time, check your interent and try using a different browser. If you are on a corporate VPN, it may be blocking the websocket connection.
+                Attempting to reach the game server. If this takes a long time, check your internet and try using a different browser. If you are on a corporate VPN, it may be blocking the websocket connection.
             </p>
         </div>;
     }
