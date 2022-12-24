@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["GiantCowFilms <git@giantcowfilms.com>"]
 edition = "2018"
 
+#[build]
+#rustflags = ["-Clinker=rust-lld"]
+
 [dependencies]
 tokio = { version = "0.2.22", features = ["full"] }
 tokio-tungstenite = "0.11.0"
