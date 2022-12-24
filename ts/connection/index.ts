@@ -85,4 +85,14 @@ export default function createConnection (url: string): GameConnection {
     return connection;
 }
 
-export const gameConnectionSingleton: GameConnection = createConnection(process.env.SERVER_URL);
+/**
+ * Upgrades ws url to wss, if the page is currently https, since ws is not permitted on an https page. 
+ * @param url 
+ */
+function matchWebsocketTransportSecurity(url: string) {
+    const parsedUrl = new URL(url);
+    parsedUrl.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return parsedUrl.toString();
+}
+
+export const gameConnectionSingleton: GameConnection = createConnection(matchWebsocketTransportSecurity(process.env.SERVER_URL));
