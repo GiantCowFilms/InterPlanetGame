@@ -7,6 +7,10 @@
             "es2015",
             "esnext"
         ],
+        "baseUrl": "./",
+        "paths": {
+            "*": [ "./client/pkg/*" ]
+        },
         "allowSyntheticDefaultImports": true,
         "moduleResolution": "node",
         "allowJs": true,

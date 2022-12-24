@@ -6,6 +6,8 @@ import PlayerName from './components/PlayerName';
 import { useGameList } from './connection/hooks';
 import { gameUrl } from './gameInfo';
 import ConnectionStatus from './components/ConnectionStatus';
+import { useStorageState } from './util/hooks';
+import { gameConnectionSingleton } from './connection';
 type game_state = {
 
 }
@@ -60,7 +62,18 @@ function Root() {
             document.removeEventListener("hashchange", onHashChange);
         };
     },[games,mode]);
-    const [playerName, setPlayerName] = useState(undefined);
+    const [playerName, setPlayerName] = useStorageState("playerName");
+    useEffect(() => {
+        if (playerName === undefined) return;
+        if(gameConnectionSingleton.status !== "open") {
+            const remove = gameConnectionSingleton.onEvent("ConnectionStatusChange",() => {
+                gameConnectionSingleton.client.set_name(playerName);
+            });
+            return remove;
+        } else {
+            gameConnectionSingleton.client.set_name(playerName);
+        };
+    },[playerName])
     return <>
         <div className="title">Inter-Planet Game</div>
         <ConnectionStatus>

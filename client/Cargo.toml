@@ -53,7 +53,8 @@ features = [
   "Window",
   "Performance",
   "console",
-  "WebSocket"
+  "WebSocket",
+  "Storage"
 ]
 
 [features]

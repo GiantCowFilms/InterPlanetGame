@@ -1,6 +1,6 @@
 use futures::{SinkExt, StreamExt};
 use ipg_core::game::Game;
-use ipg_core::protocol::messages::{GameMetadata, MessageType};
+use ipg_core::protocol::messages::{GameMetadata, MessageType, RejoinCode };
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
@@ -17,6 +17,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 pub mod connection;
 pub mod map_manager;
+pub mod rejoin;
 use self::connection::GameConnection;
 
 use ipg_core::game::GameExecutor;
@@ -27,6 +28,7 @@ pub struct GameServer {
     games: RwLock<HashMap<String, Arc<Mutex<GameExecutor>>>>,
     // In theory, the sinks will end up all being the same type, meaning static dispatch is not out of the quesiton.
     connections: Mutex<Vec<mpsc::Sender<Message>>>,
+    rejoin_codes: Mutex<HashMap<RejoinCode, usize>>,
     map_manager: Mutex<Box<dyn map_manager::MapManager + Send>>,
 }
 
@@ -63,6 +65,7 @@ impl GameServer {
             port: port,
             connections: Mutex::new(Vec::new()),
             games: RwLock::new(HashMap::new()),
+            rejoin_codes: Mutex::new(HashMap::new()),
             map_manager: Mutex::new(Box::new(maps)),
         };
         let mut rt = Runtime::new().unwrap();

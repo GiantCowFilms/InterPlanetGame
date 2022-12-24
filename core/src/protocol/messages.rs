@@ -54,11 +54,17 @@ pub struct PlayerMetadata {
 }
 
 type GameID = String;
+pub type RejoinCode = String;
+#[derive(Deserialize, Serialize)]
+pub struct EnterGame {
+    pub game_id: GameID,
+    pub rejoin_code: Option<RejoinCode>,
+}
 
 #[derive(Deserialize, Serialize)]
 pub enum MessageType {
     SetName(SetName),
-    EnterGame(GameID),
+    EnterGame(EnterGame),
     Possession(u32),
     Game(Game),
     GameState(GameState),

@@ -1,11 +1,14 @@
 use crate::GameServer;
 use futures::{stream, StreamExt};
 use ipg_core::game::{Game, GameEvent, GameExecutor, Player};
-use ipg_core::protocol::messages::{GameList, GameMetadata, MessageType};
+use ipg_core::protocol::messages::{GameList, GameMetadata, MessageType, EnterGame};
+use std::borrow::BorrowMut;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::{mpsc::Sender, Mutex};
 use tokio_tungstenite::tungstenite::Message;
+
+use super::rejoin::generate_rejoin_code;
 
 pub trait Captures<'a> {}
 
@@ -110,7 +113,7 @@ impl GameConnection {
                 let _ = self.sink.send(Message::from("ExitGame")).await;
                 Ok(())
             }
-            MessageType::EnterGame(game_id) => {
+            MessageType::EnterGame(EnterGame { game_id, rejoin_code }) => {
                 let mut games = self.instance.games.write().await;
                 let game_executor_mtx = games.get_mut(&game_id).ok_or_else(|| {
                     format!("Could not find a game with an id of \"{}\"", &game_id)
@@ -120,9 +123,27 @@ impl GameConnection {
                     .player
                     .as_ref()
                     .ok_or_else(|| "Players must set a name before joining a game.".to_owned())?;
+                let (game_player,rejoin_code) = if let Some(rejoin_code) = rejoin_code {
+                    let rejoin_mtx = self.instance.rejoin_codes.lock().await;
+                    let possession = rejoin_mtx.get(&(game_id.clone() + &rejoin_code)).ok_or_else(|| {format!("Could not find a session with rejoin id of \"{}\"",&rejoin_code)})?;
+                    game_executor.remove_player(&Player {
+                        possession: *possession,
+                        ..player.clone()
+                    });
+                    (Player {
+                        possession: *possession,
+                        ..player.clone()
+                    },rejoin_code)
+                } else {
+                    let rejoin_code = generate_rejoin_code();
+                    (Player {
+                        possession: 0,
+                        ..player.clone()
+                    },rejoin_code)
+                };
                 self.player = Some(
                     game_executor
-                        .add_player(player.clone())
+                        .add_player(game_player)
                         .map_err(|_| "Too many players".to_owned())?,
                 );
                 let handler_sink = self.sink.clone();
@@ -132,9 +153,11 @@ impl GameConnection {
                         GameConnection::handle_game_event(handler_sink.clone(), game, event);
                     },
                 ));
-                let seralized = serde_json::to_string(&MessageType::EnterGame(game_id.clone()));
+                let seralized = serde_json::to_string(&MessageType::EnterGame(EnterGame { game_id: game_id.clone(), rejoin_code: Some(rejoin_code.clone()) }));
                 let _ = self.sink.send(Message::from(seralized.unwrap())).await;
                 if let Some(player) = &self.player {
+                    let mut rejoin_mtx = self.instance.rejoin_codes.lock().await;
+                    rejoin_mtx.insert(game_id.clone() + &rejoin_code, player.possession);
                     let seralized =
                         serde_json::to_string(&MessageType::Possession(player.possession as u32));
                     let _ = self.sink.send(Message::from(seralized.unwrap())).await;
@@ -163,9 +186,14 @@ impl GameConnection {
             }
             MessageType::SetName(name_data) => {
                 //Replace player to avoid mutexes/refcells and such
-                self.player = Some(Player {
-                    name: name_data.name,
-                    possession: 0, //Garbag data
+                self.player = Some(if let Some(mut player) = self.player.clone() {
+                     player.name = name_data.name;
+                     player
+                } else { 
+                    Player {
+                        name: name_data.name,
+                        possession: 0, //Garbage data
+                    } 
                 });
                 Ok(())
             }

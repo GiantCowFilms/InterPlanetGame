@@ -1,13 +1,14 @@
 import { make, GameClient } from "ipg_client";
 type GameConnectionStatus = "pending"|"error"|"open"|"init";
+type GameConnectionEvent = "ConnectionStatusChange"|string;
 
 type GameConnection = {
     client: GameClient;
     socket: WebSocket;
     status: GameConnectionStatus,
     eventHandlers: Map<string,(() => void)[]>;
-    onEvent: (event: string,callback: () =>void) => () => void;
-    triggerEvent: (event: string) => void;
+    onEvent: (event: GameConnectionEvent, callback: () =>void) => () => void;
+    triggerEvent: (event: GameConnectionEvent) => void;
     setStatus: (status: GameConnectionStatus) => void;
 };
 

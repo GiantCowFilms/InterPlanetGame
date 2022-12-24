@@ -8,7 +8,6 @@ interface Props {
 function PlayerName (props: Props) {
     const [playerName,setPlayerName] = useState("");
     const setName = () => {
-        gameConnectionSingleton.client.set_name(playerName);
         props.onSubmit(playerName);
     };
     return (
