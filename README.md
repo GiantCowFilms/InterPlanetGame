@@ -14,6 +14,13 @@ The goal is to take possesion of all the planets in the game. Planets can be inv
 
 The core game logic (./core) is implemented in Rust, as is the server (./server) and the parts of the client (./client) focused on rendering the game. The UI is TypeScript/React (./ts). The Rust portions that run in the browser are compiled into WebAssembly.
 
+### Local dev setup
+You need to install:
+ * Rust - https://www.rust-lang.org/tools/install
+ * wasm-pack - https://rustwasm.github.io/wasm-pack/
+ * Node & npm
+
+run 
 
 
 
