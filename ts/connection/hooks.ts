@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { game } from "../state/mode";
 import { gameConnectionSingleton } from ".";
 
 export const useGameList = () => {
-    const state = useState([]);
+    const state = useState<game[]>([]);
     const [games,setGames] = state;
     useEffect(() => {
         const updateGames = () => {

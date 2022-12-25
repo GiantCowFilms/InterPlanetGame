@@ -25,14 +25,17 @@ function Root() {
     const [mode, setModeInternal] = useState<mode>({
         type: "browse"
     });
-    const setMode = (mode: mode) => {
-        if (mode.type === "game") {
-            window.location.hash = gameUrl(mode.game).hash;
-        } else if (mode.type === "browse") {
-            window.location.hash = "";
-        }
-        setModeInternal(mode);
-    };
+    const setMode = ((newMode) => {
+        setModeInternal(oldMode => {
+            const mode = typeof newMode === 'function' ? newMode(oldMode) : newMode;
+            if (mode.type === "game") {
+                window.location.hash = gameUrl(mode.game).hash;
+            } else if (mode.type === "browse") {
+                window.location.hash = "";
+            }
+            return mode;
+        });
+    }) as typeof setModeInternal;
     const [games] = useGameList();
     useEffect(() => {
         const onHashChange = () => {
@@ -48,10 +51,16 @@ function Root() {
             if (join) {
                 const game = games.find(game => game.game_id === join);
                 // todo display error if game is not found
-                if (game && (mode.type !== "game" || mode.game !== game)) {
-                    setMode({
-                        type: "game",
-                        game
+                if (game) {
+                    setMode(mode => { 
+                        if (mode.type !== "game" || mode.game.game_id !== game.game_id) {
+                            return {
+                                type: "game",
+                                game
+                            }
+                        } else {
+                            return mode;
+                        }
                     });
                 }
             }

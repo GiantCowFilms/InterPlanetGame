@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
 import {gameConnectionSingleton} from "../connection/index";
-import { ModeContext } from "../state/mode";
+import { game, ModeContext } from "../state/mode";
 
 interface Props {
-    game: any
+    game: game
 }
 
 function GameItem(props: Props) {
@@ -16,7 +16,7 @@ function GameItem(props: Props) {
 
     const modeContext = useContext(ModeContext);
 
-    const handleGameSelection = (game: any) => {
+    const handleGameSelection = (game: game) => {
         modeContext.setMode({
             type: "game",
             game

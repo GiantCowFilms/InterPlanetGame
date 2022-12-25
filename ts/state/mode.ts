@@ -1,8 +1,13 @@
 import React from "react";
 
+export type game = {
+    game_id: string,
+    map_id: string,
+};
+
 export type mode = {
     type: "game",
-    game: any,
+    game: game,
 } | {
     type: "browse"
 };
