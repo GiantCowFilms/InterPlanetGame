@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useCallback } from 'react';
 import GameWindow from './components/GameWindow';
 import GameList from './components/GameList';
 import { mode, ModeContext } from './state/mode';
@@ -6,7 +6,7 @@ import PlayerName from './components/PlayerName';
 import { useGameList } from './connection/hooks';
 import { gameUrl } from './gameInfo';
 import ConnectionStatus from './components/ConnectionStatus';
-import { useStorageState } from './util/hooks';
+import { useSeverActionResult, useStorageState } from './util/hooks';
 import { gameConnectionSingleton } from './connection';
 type game_state = {
 
@@ -70,19 +70,21 @@ function Root() {
         return () => {
             document.removeEventListener("hashchange", onHashChange);
         };
-    },[games,mode]);
+    },[games,mode,setMode]);
     const [playerName, setPlayerName] = useStorageState("playerName");
-    useEffect(() => {
+    const playerNameStatus = useSeverActionResult(useCallback((complete) => {
         if (playerName === undefined) return;
         if(gameConnectionSingleton.status !== "open") {
             const remove = gameConnectionSingleton.onEvent("ConnectionStatusChange",() => {
                 gameConnectionSingleton.client.set_name(playerName);
+                complete();
             });
             return remove;
         } else {
             gameConnectionSingleton.client.set_name(playerName);
+            complete();
         };
-    },[playerName])
+    },[playerName]));
     return <>
         <div className="title">Inter-Planet Game</div>
         <ConnectionStatus>
@@ -94,7 +96,7 @@ function Root() {
                     mode.type === "browse" ?
                         <GameList />
                         : mode.type === "game" ?
-                            playerName !== undefined ?
+                            playerName !== undefined && playerNameStatus == "done" ?
                                 <GameWindow game={mode.game} />
                                 : <PlayerName onSubmit={setPlayerName} />
                             :
