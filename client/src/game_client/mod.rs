@@ -1,12 +1,12 @@
 use ipg_core::game::{map::Map, GameExecutor, Planet, Player};
 use ipg_core::protocol::messages::{
-    GameList, GameMetadata, GameMove, GameState, MessageType, SetName, EnterGame,
+    EnterGame, GameList, GameMetadata, GameMove, GameState, MessageType, SetName,
 };
 use js_sys;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, WebSocket, window, Storage};
+use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement, Storage, WebSocket};
 mod game_render;
 use self::game_render::GameRender;
 
@@ -55,25 +55,25 @@ pub struct GameClient {
     maps: HashMap<String, Map>,
 }
 
-pub struct RejoinCode { }
+pub struct RejoinCode {}
 
 impl RejoinCode {
     fn get_storage() -> Storage {
         window()
-        .expect("Should have a window in this context")
-        .local_storage()
-        .expect("Unable to access local storage")
-        .unwrap()
+            .expect("Should have a window in this context")
+            .local_storage()
+            .expect("Unable to access local storage")
+            .unwrap()
     }
     pub fn set(game_id: &str, rejoin_code: &str) {
         RejoinCode::get_storage()
-        .set_item(game_id, rejoin_code)
-        .expect("Couldn't save rejoine code.");
+            .set_item(game_id, rejoin_code)
+            .expect("Couldn't save rejoine code.");
     }
     pub fn get(game_id: &str) -> Option<String> {
         RejoinCode::get_storage()
-        .get_item(game_id)
-        .expect("Couldn't save rejoine code.")
+            .get_item(game_id)
+            .expect("Couldn't save rejoine code.")
     }
 }
 
@@ -111,7 +111,7 @@ impl GameClient {
             MessageType::MapList(map_list) => {
                 self.maps = map_list;
                 Some("MapList".to_owned())
-            },
+            }
             message => {
                 match self.current_game {
                     ActiveGame::Joined(ref mut current) => {
@@ -139,10 +139,10 @@ impl GameClient {
                     }
                     ActiveGame::Waiting(ref mut waiting) => {
                         match message {
-                            MessageType::EnterGame(EnterGame { rejoin_code, .. }) => { 
-                                RejoinCode::set(&waiting.metadata.game_id,&rejoin_code.unwrap());
-                                Some("EnterGame".to_owned()) 
-                            },
+                            MessageType::EnterGame(EnterGame { rejoin_code, .. }) => {
+                                RejoinCode::set(&waiting.metadata.game_id, &rejoin_code.unwrap());
+                                Some("EnterGame".to_owned())
+                            }
                             MessageType::Game(game) => {
                                 let owned =
                                     std::mem::replace(&mut self.current_game, ActiveGame::None);
@@ -248,9 +248,11 @@ impl GameClient {
             game_metadata.into_serde() as Result<GameMetadata, serde_json::Error>
         {
             let rejoin_code = RejoinCode::get(&game_metadata.game_id);
-            let message =
-                serde_json::to_string(&MessageType::EnterGame(EnterGame { game_id: game_metadata.game_id.to_owned(), rejoin_code } ))
-                    .unwrap();
+            let message = serde_json::to_string(&MessageType::EnterGame(EnterGame {
+                game_id: game_metadata.game_id.to_owned(),
+                rejoin_code,
+            }))
+            .unwrap();
             let _ = self.socket.send_with_str(message.as_str());
             self.current_game = ActiveGame::Waiting(Waiting {
                 metadata: game_metadata,

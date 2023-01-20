@@ -1,6 +1,6 @@
 use futures::{SinkExt, StreamExt};
 use ipg_core::game::Game;
-use ipg_core::protocol::messages::{GameMetadata, MessageType, RejoinCode };
+use ipg_core::protocol::messages::{GameMetadata, MessageType, RejoinCode};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
