@@ -6,7 +6,7 @@ import PlayerName from './components/PlayerName';
 import { useGameList } from './connection/hooks';
 import { gameUrl } from './gameInfo';
 import ConnectionStatus from './components/ConnectionStatus';
-import { useSeverActionResult, useStorageState } from './util/hooks';
+import { useStorageState } from './util/hooks';
 import { gameConnectionSingleton } from './connection';
 type game_state = {
 
@@ -71,20 +71,22 @@ function Root() {
             document.removeEventListener("hashchange", onHashChange);
         };
     },[games,mode,setMode]);
-    const [playerName, setPlayerName] = useStorageState("playerName");
-    const playerNameStatus = useSeverActionResult(useCallback((complete) => {
-        if (playerName === undefined) return;
-        if(gameConnectionSingleton.status !== "open") {
+    const [playerName, setPlayerNameInternal] = useStorageState("playerName");
+    // Send set_name event to the server if playerName is already defined
+    // Note this callback could theoretically run after GameWindow tries to render, which would break the app
+    // it works fine when I tested, but this code needs to be refactored to be less race condition prone.
+    useEffect(() => {
+        if(gameConnectionSingleton.status !== "open" && playerName !== undefined) {
             const remove = gameConnectionSingleton.onEvent("ConnectionStatusChange",() => {
                 gameConnectionSingleton.client.set_name(playerName);
-                complete();
             });
             return remove;
-        } else {
-            gameConnectionSingleton.client.set_name(playerName);
-            complete();
-        };
-    },[playerName]));
+        }
+    },[playerName]);
+    const setPlayerName = useCallback((playerName: string) => {
+        gameConnectionSingleton.client.set_name(playerName);
+        setPlayerNameInternal(playerName);
+    },[setPlayerNameInternal]);
     return <>
         <div className="title">Inter-Planet Game</div>
         <ConnectionStatus>
@@ -96,7 +98,7 @@ function Root() {
                     mode.type === "browse" ?
                         <GameList />
                         : mode.type === "game" ?
-                            playerName !== undefined && playerNameStatus == "done" ?
+                            playerName !== undefined ?
                                 <GameWindow game={mode.game} />
                                 : <PlayerName onSubmit={setPlayerName} />
                             :
