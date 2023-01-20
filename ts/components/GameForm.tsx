@@ -16,7 +16,7 @@ function GameForm() {
     const [mapList, setMapList] = useState(gameConnectionSingleton.client.get_maps());
     const [minPlayers, setMinPlayers] = useState(2);
     const [mapId, setMapId] = useState("");
-    const previewCanvas = useRef(null);
+    const previewCanvas = useRef<HTMLCanvasElement>(null);
     useEffect(() => {
         const canvas = previewCanvas.current;
         try {
@@ -24,9 +24,9 @@ function GameForm() {
             gameConnectionSingleton.client.preview_game(canvas, mapId);
         } catch (e) {
             console.error(e);
-            const ctx = canvas.getContext("2d");
+            const ctx = canvas?.getContext("2d")!;
             ctx.fillStyle = "#ffffff";
-            ctx.fillText(10, 10, "Could not render a preview.");
+            ctx.fillText("Could not render a preview.", 10, 10);
         }
     }, [
         mapId

@@ -11,6 +11,7 @@
         "paths": {
             "*": [ "./client/pkg/*" ]
         },
+        "strict": true,
         "allowSyntheticDefaultImports": true,
         "moduleResolution": "node",
         "allowJs": true,
@@ -20,6 +21,7 @@
         "target": "es2017"
     },
     "exclude": [
-        "node_modules"
+        "node_modules",
+        "dist"
     ]
 }

@@ -7,9 +7,9 @@ interface Props {
 }
 
 function GameWindow(props: Props) {
-    const canvasTop = useRef(null);
-    const canvasBottom = useRef(null);
-    const [players, setPlayersInternal] = useState([]);
+    const canvasTop = useRef<HTMLCanvasElement>(null);
+    const canvasBottom = useRef<HTMLCanvasElement>(null);
+    const [players, setPlayersInternal] = useState<any[]>([]);
     const setPlayers = () => setPlayersInternal(gameConnectionSingleton.client.get_player_list());
     const [gameStarted, setGameStarted] = useState(false);
     const startGame = () => {
@@ -17,7 +17,7 @@ function GameWindow(props: Props) {
     }
     const getCoordinates = (e: MouseEvent) => {
         // This is awful:
-        const rect = (Array.from(canvasTop.current.parentElement.children)
+        const rect = (Array.from(canvasTop.current!.parentElement!.children)
             .find((child: any) => child.id === "game-canvas-top") as any)
             .getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -39,7 +39,7 @@ function GameWindow(props: Props) {
         const unHookGameEvent = gameConnectionSingleton.onEvent("Game", () => {
             if (!renderStarted) {
                 const gameTimeFrames = gameConnectionSingleton.client.get_time(); // warning: nullable
-                const startTimeMilliseconds = Date.now() - (gameTimeFrames * 17);
+                const startTimeMilliseconds = Date.now() - (gameTimeFrames! * 17);
                 console.log(`Started at: ` + startTimeMilliseconds);
                 const render = () => {
                     const time = ~~((Date.now() - startTimeMilliseconds) / 17);

@@ -60,9 +60,9 @@ export default function createConnection (url: string): GameConnection {
             if (!this.eventHandlers.has(event)) {
                 this.eventHandlers.set(event,[]);
             }
-            this.eventHandlers.get(event).push(callback);
+            this.eventHandlers.get(event)!.push(callback);
             return () => {
-                const events = this.eventHandlers.get(event);
+                const events = this.eventHandlers.get(event)!;
                 events.splice(events.indexOf(callback),1);
             }
         },
@@ -95,5 +95,5 @@ function matchWebsocketTransportSecurity(url: string) {
     parsedUrl.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     return parsedUrl.toString();
 }
-
+if (process.env.SERVER_URL === undefined) throw new Error('Enviornment variable SERVER_URL must be provided (are you missing it in the .env file?)');
 export const gameConnectionSingleton: GameConnection = createConnection(matchWebsocketTransportSecurity(process.env.SERVER_URL));

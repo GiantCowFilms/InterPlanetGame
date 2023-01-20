@@ -6,7 +6,11 @@ export const useStorageState = (key: string) => {
     return [value,((value) => {
         setValue(prevValue => {
             const newValue = typeof value === 'function' ? value(prevValue) : value;
-            window.localStorage.setItem(key,newValue);
+            if (newValue === undefined) {
+                window.localStorage.removeItem(key);
+            } else {
+                window.localStorage.setItem(key,newValue);
+            }
             return newValue;
         });
     }) as typeof setValue] as const;
